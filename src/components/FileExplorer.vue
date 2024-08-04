@@ -16,7 +16,9 @@
         </div>
       </div>
     </div>
-    <div class="right-side">
+    <div class="right-side" @dragover.prevent="handleDragOver" @dragleave="handleDragLeave" @drop.prevent="handleDrop"
+      :class="{ 'dragging': isDraggingFile }">
+      <input type="file" ref="fileInput" @change="handleFileChange" style="display: none;" />
       <div v-for="(subFilePath, index) in subFilePaths" :key="index">
         <div class="pic-grid" @contextmenu.prevent="showContextMenu($event, index, subFilePath)">
           <div v-if="subFilePath.indexOf('.') > 0" class="number-badge">{{ subFilePathRankMap[subFilePath] > 0 ?
@@ -44,6 +46,8 @@
         curVideoInfo.videoName }}</span></li>
       <li @click="copyFilePath" @mouseenter="hideScriptNumMenu">复制路径</li>
       <li @click="locateFile" @mouseenter="hideScriptNumMenu">定位文件</li>
+      <li @click="deleteFile" @mouseenter="hideScriptNumMenu">删除文件</li>
+      <li v-if="showFileSearch" @click="diveIntoDirByPath" @mouseenter="hideScriptNumMenu">跳转</li>
     </ul>
 
     <ul v-if="scriptNumMenu.visible" class="context-menu"
@@ -60,21 +64,24 @@
       <button @click="getFileList">fileList</button>
     </div>
 
+    <ShrinkBox :parentData="shrinkBoxData" v-if="shrinkBoxData.show"></ShrinkBox>
+
     <FileSearch class="centered-overlay" v-if="showFileSearch" @fileSearchEvent="handleFileSearchEvent"
-      :parentData="{ path: this.curPath, type: 1 }" @mousedown="startDrag"
+      :parentData="{ path: curPath, type: 1 }" @mousedown="startDrag"
       :style="{ top: componentTop + 'px', left: componentLeft + 'px', position: 'absolute' }"></FileSearch>
 
     <FileSearch class="centered-overlay" v-if="showFileSearchInCurDir" @fileSearchEvent="handleFileSearchEvent"
-      :parentData="{ path: this.fileList[this.selectedIndex].path, type: 2 }" @mousedown="startDrag"
+      :parentData="{ path: fileList[selectedIndex].path, type: 2 }" @mousedown="startDrag"
       :style="{ top: componentTop + 'px', left: componentLeft + 'px', position: 'absolute' }"></FileSearch>
 
   </div>
 </template>
 
 <script>
-import { SPEC, tableNameMap, OPERATION_TYPE, BOUNDS, DEFAULT_CONFIG_DEST } from '@/js/constants';
-import { newDataWithinVues, mimeType, similarity } from '@/js/functions/vue-functions'
-import FileSearch from './FileSearch.vue';
+import { SPEC, tableNameMap, OPERATION_TYPE, BOUNDS, DEFAULT_CONFIG_DEST } from '@/js/constants'
+import { newDataWithinVues, mimeType, similarity, delay } from '@/js/functions/vue-functions'
+import FileSearch from './FileSearch.vue'
+import ShrinkBox from './kit/ShrinkBox.vue'
 
 
 function splitWithSlashOrBackSlash(str) {
@@ -91,6 +98,7 @@ function splitWithSlashOrBackSlash(str) {
   }
   return res;
 }
+
 
 //TODO scale the picture grid using scrolling
 
@@ -110,13 +118,13 @@ export default {
         visible: false,
         x: 0,
         y: 0,
-        index: null,
+        index: 0,
       },
       scriptNumMenu: {
         visible: false,
         x: 0,
         y: 0,
-        index: null,
+        index: 0,
       },
       curVideoInfo: {},
       selectedSubfilePath: '',
@@ -130,9 +138,118 @@ export default {
       dragStartY: 0,
       componentTop: BOUNDS.HEIGHT / 2, // Initial top position
       componentLeft: BOUNDS.WIDTH / 2, // Initial left position
+
+      isDraggingFile: false,
+      dragCounter: 0,
+
+      shrinkBoxData: {
+        show: false
+      }
+
     }
   },
   methods: {
+    deleteFile() {
+      const idx = this.contextMenu.index
+      const path = this.subFilePaths[this.contextMenu.index]
+
+      window.electronAPI.deleteFile(path).then(success => {
+        if (success) {
+          this.subFilePaths.splice(idx, 1)
+        } else {
+          alert(`${path}删除失败`)
+        }
+      })
+    },
+    /**
+     * save batch files
+     * @param event input event
+     */
+    handleFileChange(event) {
+      const files = event.target.files;
+      if (files.length > 0) {
+        const filePromises = Array.from(files).map(file => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = (e) => {
+              resolve({
+                filename: file.name,
+                fileData: e.target.result
+              })
+            }
+            reader.onerror = reject
+            reader.readAsArrayBuffer(file)
+          })
+        })
+
+        Promise.all(filePromises)
+          .then(fileObjList => {
+            const curSelectedFile = this.fileList[this.selectedIndex];
+            if (curSelectedFile.isDir) {
+              const batchFileInfo = fileObjList.map(fileObj => ({
+                dirPath: curSelectedFile.path,
+                filename: fileObj.filename,
+                fileData: fileObj.fileData
+              }));
+
+              return window.electronAPI.saveFiles(batchFileInfo)
+            }
+            return Promise.reject('Directory is not selected.')
+          })
+          .then(({ savedFilePaths, failedFilePaths }) => {
+            if (savedFilePaths.length === 0) {
+              alert('保存失败')
+            } else {
+              this.subFilePaths.push(...savedFilePaths);
+              this.subFilePaths = [...new Set(this.subFilePaths)].sort()
+            }
+
+            if (failedFilePaths.length > 0) {
+              alert(`Failed to save some files: ${failedFilePaths.join(', ')}`)
+            }
+          })
+          .catch(err => {
+            console.error(`Error: ${err}`)
+            alert('保存失败')
+          });
+      }
+    },
+    handleDragOver(event) {
+      event.preventDefault()
+      if (this.dragCounter === 0) {
+        this.isDraggingFile = true
+      }
+      this.dragCounter++
+    },
+    handleDragLeave(event) {
+      /*
+        prevent this.isDraggingFile changing between true/false frequently
+        if this.dragCounter doesn't increment in a while, arbitrarily assert that 
+        the file is not being dragging now 
+      */
+      let c1, c2
+      delay(30)
+        .then(() => {
+          c1 = this.dragCounter
+          return delay(30)
+        })
+        .then(() => {
+          c2 = this.dragCounter
+          if (c1 === c2) {
+            this.isDraggingFile = false
+            this.dragCounter = 0
+          }
+        })
+    },
+    handleDrop(event) {
+      const file = event.dataTransfer.files[0]
+      if (file) {
+        this.$refs.fileInput.files = event.dataTransfer.files;
+        this.handleFileChange({ target: { files: event.dataTransfer.files } })
+      }
+      this.isDraggingFile = false
+      this.dragCounter = 0
+    },
     startDrag(event) {
       this.isDragging = true;
       this.dragStartX = event.clientX - this.componentLeft;
@@ -166,7 +283,10 @@ export default {
           break
         case 'updateSubFilePaths':
           this.subFilePaths = info.data
-          this.fileList = []
+          if (info.type === 1) {
+            // reset only when global search
+            this.fileList = []
+          }
           this.updateSubFilePathRankMap()
       }
     },
@@ -213,13 +333,12 @@ export default {
     },
     locateFile() {
       const path = this.subFilePaths[this.contextMenu.index]
-      // console.log('this.contextMenu.index======>', this.contextMenu.index);
       // console.log('path======>', path);
       window.electronAPI.locateFileInOs(path)
     },
     hideScriptNumMenu() {
       this.scriptNumMenu.visible = false;
-      this.scriptNumMenu.index = null;
+      this.scriptNumMenu.index = 0;
       document.removeEventListener('click', this.hideScriptNumMenu);
       // 移除 keydown 事件监听器
       const addToInput = this.$refs.addToInput;
@@ -271,7 +390,7 @@ export default {
     },
     hideContextMenu() {
       this.contextMenu.visible = false;
-      this.contextMenu.index = null;
+      this.contextMenu.index = 0;
       document.removeEventListener('click', this.hideContextMenu);
     },
     // contextMenuAction(index) {
@@ -283,6 +402,8 @@ export default {
       // console.log(JSON.stringify(this.selectedIndex));
       // console.log(JSON.stringify(this.contextMenu));
       console.log(JSON.stringify(this.curPath));
+      console.log(this.subFilePaths);
+      console.log(this.fileList[this.selectedIndex]);
     },
     change() {
       window.electronAPI.fr(DEFAULT_CONFIG_DEST)
@@ -374,6 +495,69 @@ export default {
 
       await this.updateWhenFolderChanged(this.selectedIndex)
     },
+    async diveIntoDirByPath() {
+      // throttle the requests or using a concurrency limit
+      async function determineIfIsDirInBatch(filePaths) {
+        return Promise.all(filePaths.map(async (filePath) => {
+          return {
+            path: filePath,
+            isDir: await window.electronAPI.determineIfIsDir(filePath)
+          };
+        }));
+      }
+
+      const path = this.subFilePaths[this.contextMenu.index]
+      const parentDir = path.substring(0, path.lastIndexOf('\\'))
+      const grandDir = parentDir.substring(0, parentDir.lastIndexOf('\\'))
+      const filePaths = await window.electronAPI.subfilePathsInDir(grandDir)
+      this.fileList = []
+      const fileInfos = await determineIfIsDirInBatch(filePaths);
+      for (let i = 0; i < fileInfos.length; i++) {
+        let fileInfo = fileInfos[i]
+        this.fileList.push({
+          name: fileInfo.path.substring(fileInfo.path.lastIndexOf('\\') + 1),
+          path: fileInfo.path,
+          /*
+            if call the function like 'await window.electronAPI.determineIfIsDir(filePath)'
+            directly, the time cost of this loop gets unstable 
+          */
+          isDir: fileInfo.isDir
+        })
+        if (fileInfo.path === parentDir) {
+          this.selectedIndex = i
+        }
+      }
+
+      let idx = (await this.updateWhenFolderChanged(this.selectedIndex)).indexOf(path)
+      this.curPath = grandDir
+      this.showFileSearch = false
+
+      this.$nextTick(() => {
+        const selectedElement = this.$el.querySelectorAll('.pic-grid')[idx]
+        console.log(selectedElement);
+        if (selectedElement) {
+          selectedElement.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
+          selectedElement.classList.add('pic-grid-selected')
+          delay(6000).then(() => {
+            selectedElement.classList.remove('pic-grid-selected')
+          })
+
+          this.shrinkBoxData.show = true
+          const targetRect = selectedElement.getBoundingClientRect();
+          // define the position of end of the animation
+          this.shrinkBoxData['finalWidth'] = targetRect.width
+          this.shrinkBoxData['finalHeight'] = targetRect.height
+          this.shrinkBoxData['finalTop'] = targetRect.top + window.scrollY
+          this.shrinkBoxData['finalLeft'] = targetRect.left + window.scrollX
+          this.shrinkBoxData['bkColorRgba'] = `rgba(119, 117, 117, 0.516)`
+          // unit: second
+          this.shrinkBoxData['aliveTime'] = 0.4
+          delay(this.shrinkBoxData['aliveTime'] * 1000).then(() => {
+            this.shrinkBoxData.show = false
+          })
+        }
+      })
+    },
     // handleFileChange(event) {
     //   const targetFiles = event.target.files;
     //   if (targetFiles.length) {
@@ -410,11 +594,12 @@ export default {
     /**
      * update subfiles real time when folder is changed
      * @param index index where current folder locates in the directory
+     * @returns all subFilePaths under the folder specified by index
      */
     updateWhenFolderChanged(index) {
       try {
         const path = this.fileList[index].path
-        window.electronAPI.subfilePathsInDir(path)
+        return window.electronAPI.subfilePathsInDir(path)
           .then(subFilePaths => {
             this.subFilePaths = subFilePaths
 
@@ -424,10 +609,12 @@ export default {
               if (selectedElement) {
                 selectedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
               }
-            });
+            })
+            return subFilePaths
           })
-          .then(() => {
+          .then((res) => {
             this.updateSubFilePathRankMap()
+            return res
           })
       } catch (error) {
         console.log('there is an error when page changed:', JSON.stringify(error));
@@ -531,8 +718,8 @@ export default {
 
         }
       }
+    })
 
-    });
   },
   unmounted() {
     window.removeEventListener('keydown', this.handleKeyDown);
@@ -579,7 +766,7 @@ export default {
     }
   },
   components: {
-    FileSearch,
+    FileSearch, ShrinkBox
   }
 
 };
@@ -605,6 +792,13 @@ export default {
   flex-wrap: wrap;
   gap: 10px;
   user-select: none;
+  transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+
+.right-side.dragging {
+  box-shadow: 10 10 10px rgba(0, 0, 0, 0.2);
+  border-color: #333;
+  background-color: rgba(72, 76, 79, 0.3);
 }
 
 .path-selector {
@@ -624,7 +818,6 @@ export default {
   border-bottom: 1px dashed blue;
   user-select: none;
   transition: background-color 0.1s ease;
-  /* 增加平滑过渡 */
   text-align: left;
   /* 确保文本左对齐 */
   padding-left: 30px;
@@ -633,7 +826,6 @@ export default {
 
 .file-tab:hover {
   background-color: #f0f0f0;
-  /* 背景底色 */
 }
 
 .file-tab.selected {
@@ -669,19 +861,36 @@ export default {
   /* 保持图片比例 */
 }
 
+/* 定义边框闪烁动画 */
+@keyframes borderBlink {
+  0% {
+    border-color: rgb(59, 60, 54);
+  }
+
+  50% {
+    border-color: transparent;
+  }
+
+  100% {
+    border-color: rgb(59, 60, 54);
+  }
+}
+
+/* 应用动画到选中的元素 */
+.pic-grid-selected {
+  animation: borderBlink 2s infinite;
+  border: 5px dashed rgb(59, 60, 54);
+  box-sizing: border-box;
+}
+
 .number-badge {
   position: absolute;
   top: 10px;
-  /* 调整为你想要的具体位置 */
   right: 10px;
-  /* 调整为你想要的具体位置 */
   background-color: rgba(0, 0, 0, 0.5);
-  /* 半透明背景 */
   color: white;
   width: 24px;
-  /* 调整为你想要的具体大小 */
   height: 24px;
-  /* 调整为你想要的具体大小 */
   border-radius: 50%;
   font-size: 14px;
   text-align: center;
@@ -701,7 +910,6 @@ export default {
   z-index: 1000;
   text-align: left;
   min-width: 150px;
-  /* 设置最小宽度 */
 }
 
 .context-menu li {

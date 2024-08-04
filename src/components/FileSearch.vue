@@ -2,6 +2,7 @@
   <div class="container" ref="container">
     <input type="text" :placeholder="dynamicPlaceholder" v-model="keywordForSearching" ref="searchInput">
     <button @click="keywordForSearching = ''">清除</button>
+    <button :class="{ 'regex': regexMode }" @click="toggleSearchMode">正则</button>
   </div>
 </template>
 
@@ -11,7 +12,8 @@ export default {
   data() {
     return {
       keywordForSearching: '',
-      dynamicPlaceholder: `在‘${this.parentData.path.substring(this.parentData.path.lastIndexOf('\\') + 1)}’下搜索`
+      dynamicPlaceholder: `在‘${this.parentData.path.substring(this.parentData.path.lastIndexOf('\\') + 1)}’下搜索`,
+      regexMode: false
     }
   },
   methods: {
@@ -35,6 +37,26 @@ export default {
         this.closeWin()
       }
     },
+    search(keyword) {
+      if (keyword === undefined || keyword === null || keyword === '') return
+      window.electronAPI.fileSearch(JSON.stringify({
+        dir: this.parentData.path,
+        keyword: keyword,
+        reg: this.regexMode,
+
+      })).then(filePaths => {
+        const info = {
+          purpose: 'updateSubFilePaths',
+          data: filePaths,
+          type: this.parentData.type
+        }
+        this.$emit('fileSearchEvent', info)
+      })
+    },
+    toggleSearchMode(){
+      this.regexMode = !this.regexMode
+      this.search(this.keywordForSearching)
+    }
 
   },
   props: {
@@ -45,17 +67,7 @@ export default {
       handler(newValue, oldValue) {
         console.log(`keywordForSearching changed from ${oldValue} to ${newValue}`);
         console.log(`this.parentData.path====>${JSON.stringify(this.parentData.path)}`);
-        if (newValue === undefined || newValue === null || newValue === '') return
-        window.electronAPI.fileSearch(JSON.stringify({
-          dir: this.parentData.path,
-          keyword: newValue
-        })).then(filePaths => {
-          const info = {
-            purpose: 'updateSubFilePaths',
-            data: filePaths
-          }
-          this.$emit('fileSearchEvent', info)
-        })
+        this.search(newValue)
       },
       deep: true,
       immediate: true
@@ -93,5 +105,9 @@ export default {
   user-select: none;
   cursor: pointer;
   font-size: 25px;
+}
+
+.regex {
+  background-color: rgb(211, 192, 192);
 }
 </style>

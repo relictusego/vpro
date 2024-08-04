@@ -58,4 +58,9 @@ export function mimeType(filePath) {
   return dp[m][n] / Math.min(m, n)  
 }
 
-
+/**
+ * do something after a period specified
+ * @param {Number} ms number of millisecond 
+ * @returns {Promise<void>}
+ */
+export const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))

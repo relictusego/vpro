@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   fw: (textInfo) => ipcRenderer.send('f-w', textInfo),
   locateFileInOs: (filePath) => ipcRenderer.send('locate-file-in-os', filePath),
+  determineIfIsDir: async (rootPath) => {
+    return await ipcRenderer.invoke('determine-if-is-dir', rootPath)
+  },
   subfilePathsInDir: async (rootPath) => {
     return await ipcRenderer.invoke('subfiles-in-dir', rootPath)
   },
@@ -46,5 +49,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   executeSql: async (info) => { return await ipcRenderer.invoke('execute-sql', info)},
   transact: async (transactionInfo) => { return await ipcRenderer.invoke('transact', transactionInfo)},
   fileSearch: async (info) => { return await ipcRenderer.invoke('file-search', info)},
+  saveFiles: async (fileObjs) => { return await ipcRenderer.invoke('save-files', fileObjs)},
+  deleteFile: async (filePath) => { return await ipcRenderer.invoke('delete-file', filePath)},
 })
 

@@ -5,7 +5,7 @@
     <router-link to="/videoSelection" exact-active-class="active-link"
       @click.native="openVideoSelection">脚本</router-link>
     <span> | </span>
-    <router-link to="/drag" exact-active-class="active-link">drag</router-link>
+    <router-link to="/drag" exact-active-class="active-link">drag</router-link>  
     <!-- <button @click="test">test</button> -->
   </div>
 </template>
@@ -16,6 +16,7 @@ import { tableNameMap, OPERATION_TYPE } from '@/js/constants';
 export default {
   data() {
     return {
+      show: true
     }
   },
   methods: {
@@ -56,10 +57,16 @@ export default {
         })
       }
     },
-
+    
   },
+  components: {
+  }
+
 
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+
+
+</style>

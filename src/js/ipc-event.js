@@ -67,10 +67,19 @@ export function bindEventWithIpc(kit) {
     }
   });
 
+  ipcMain.handle('determine-if-is-dir', async (event, rootPath) => {
+    let start = Date.now()
+    const stat = util.promisify(fs.stat)
+    const stats = await stat(rootPath)
+    // return empty arr if is a file
+    console.log(`用时：${Date.now() - start} => ${stats.isDirectory()  }`);
+    return stats.isDirectory()    
+  })
+
   ipcMain.handle('subfiles-in-dir', async (event, rootPath) => {
     const stat = util.promisify(fs.stat)
     let paths = [];
-    console.log(`rootPath====${rootPath}`);
+    // console.log(`rootPath====${rootPath}`);
     const stats = await stat(rootPath)
     // return empty arr if is a file
     if (stats.isFile()) return paths
@@ -83,9 +92,6 @@ export function bindEventWithIpc(kit) {
   })
 
   ipcMain.on('update-data-within-vues', (event, data) => {
-
-    ////
-    console.log(JSON.stringify(data));
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('on-data-within-vues', data);
     });
@@ -212,9 +218,36 @@ export function bindEventWithIpc(kit) {
   });
 
   ipcMain.handle('file-search', (event, info) => {
-    const { dir, keyword } = JSON.parse(info)
+    const { dir, keyword, reg, extensions } = JSON.parse(info)
     console.log(`dir===${dir}`);
-    return searchFilesByKeyword(dir, keyword)
+    return searchFilesByKeyword(dir, keyword, reg)
   })
 
+  ipcMain.handle('save-files', (event, fileObjs) => {
+    const savedFilePaths = []
+    const failedFilePaths = []
+
+    fileObjs.forEach(({ dirPath, filename, fileData }) => {
+      const filePath = path.join(dirPath, filename)
+      try {
+        fs.writeFileSync(filePath, Buffer.from(fileData))
+        savedFilePaths.push(filePath)
+      } catch (error) {
+        console.error(`Failed to save file ${filename}: ${error.message}`)
+        failedFilePaths.push(filePath)
+      }
+    })
+
+    // Return the paths of saved files and failed files separately
+    return { savedFilePaths, failedFilePaths }
+  })
+
+  ipcMain.handle('delete-file', (event, filePath) => {
+    try {
+      fs.unlinkSync(filePath)
+      return true
+    } catch (error) {
+      return false
+    }
+  })
 }

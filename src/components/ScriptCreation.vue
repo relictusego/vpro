@@ -340,7 +340,6 @@ export default {
       items.forEach((item, index) => {
         const itemRect = item.getBoundingClientRect();
 
-        // 判断条目是否在视口中
         const isVisible = (
           itemRect.top < containerRect.bottom &&
           itemRect.bottom > containerRect.top

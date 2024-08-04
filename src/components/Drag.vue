@@ -4,7 +4,7 @@
     @dragover.prevent="handleDragOver" 
     @dragleave="handleDragLeave" 
     @drop.prevent="handleDrop"
-    :class="{ 'dragging': isDragging }"
+    :class="{ 'dragging': isDraggingFile }"
   >
     <input type="file" ref="fileInput" @change="handleFileChange" style="display: none;" />
     <p v-if="fileName">{{ fileName }}</p>
@@ -18,7 +18,7 @@ export default {
   data() {
     return {
       fileName: '',
-      isDragging: false,
+      isDraggingFile: false,
       file: {}
     };
   },
@@ -34,10 +34,10 @@ export default {
       }
     },
     handleDragOver(event) {
-      this.isDragging = true;
+      this.isDraggingFile = true;
     },
     handleDragLeave(event) {
-      this.isDragging = false;
+      this.isDraggingFile = false;
     },
     handleDrop(event) {
       const file = event.dataTransfer.files[0];
@@ -45,7 +45,7 @@ export default {
         this.$refs.fileInput.files = event.dataTransfer.files;
         this.handleFileChange({ target: { files: event.dataTransfer.files } });
       }
-      this.isDragging = false;
+      this.isDraggingFile = false;
     }
   }
 };
