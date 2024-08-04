@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router
 import ScriptCreation from '@/components/ScriptCreation.vue'
 import VideoSelection from '@/components/VideoSelection.vue'
 import FileExplorer from '@/components/FileExplorer.vue'
+import Drag from './components/Drag.vue'
 import Home from '@/components/Home.vue'
 
 const routes = [
@@ -25,6 +26,11 @@ const routes = [
     path: '/videoSelection',
     name: 'videoSelection',
     component: VideoSelection
+  },
+  {
+    path: '/drag',
+    name: 'Drag',
+    component: Drag
   },
 ]
 

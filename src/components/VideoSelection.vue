@@ -7,7 +7,7 @@
         </div>
         <div class="del">
           <a href="#" @click.prevent="delVideo(video.id)">删除</a>&nbsp;&nbsp;&nbsp;
-          <a href="#" @click.prevent="exportVideo(video.id)">导出</a>
+          <a href="#" @click.prevent="exportVideo(video.name, video.id)">导出</a>
         </div>
         <div style="clear: both;"></div>
       </div>
@@ -28,8 +28,11 @@ import { TITLES, tableNameMap, OPERATION_TYPE, STATUS } from '@/js/constants';
       }
     },
     methods:{
-      async exportVideo(id) {
-        const { filePath } = await window.electronAPI.showSaveDialog();
+      async exportVideo(name, id) {
+        const videoInfo = {
+          defaultPath: name
+        }
+        const { filePath } = await window.electronAPI.showSaveDialog(JSON.stringify(videoInfo))
         if (!filePath) return
         console.log(filePath);
         

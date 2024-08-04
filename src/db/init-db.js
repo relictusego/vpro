@@ -13,7 +13,7 @@ let db
  * @param {String} type the type of the operation to db
  * @returns {Number|Object} number of rows affected if DML else the result selected
  */
-export function runSql(sql, type = OPERATION_TYPE.SELECTION) {
+export function runSql(sql, type) {
   return new Promise((resolve, reject) => {
     if (type === OPERATION_TYPE.SELECTION) {
       db.all(sql, (err, rows) => {
@@ -79,6 +79,7 @@ export async function initDb(app) {
       try {
         await runSql(DmlStatement.creation.CREATE_TABLE_t_script_row);
         await runSql(DmlStatement.creation.CREATE_TABLE_t_video);
+        await runSql(DmlStatement.creation.CREATE_TABLE_t_file_rank);
       } catch (e) {
         // pass
         // console.log(e);
@@ -99,7 +100,7 @@ export function valueTxtPart(dataList, fieldsToBeInserted){
     let value = '('
     fieldsToBeInserted.forEach(field => {
       const fieldValue = item[field]
-      if (fieldValue) {
+      if (fieldValue !== undefined && fieldValue !== null) {
         if (typeof fieldValue === 'number') {
           value += `${fieldValue}, `
         } else {
@@ -116,18 +117,18 @@ export function valueTxtPart(dataList, fieldsToBeInserted){
 }
 
 /**
-* get the comleted sql for insertion that's able to insert with batch
-* @param {Array} fieldsToBeInserted list fo fields of a row need to be inserted
+* get the completed sql for insertion that's able to insert with batch
+* @param {Array} fieldsToBeInserted list of fields of a row need to be inserted
 * @param {Array} dataList list of dataa to be used in iteration
 * @param {String} tableName the name of the table used
 * @returns {String} the completed sql
 */
 export function generateInsertionStatement(fieldsToBeInserted, dataList, tableName) {
-  const filedsSelected = '(' + fieldsToBeInserted.join(', ') + ')'
+  const fieldsSelected = '(' + fieldsToBeInserted.join(', ') + ')'
   let values = valueTxtPart(dataList, fieldsToBeInserted)
   return `
   INSERT INTO ${tableName}
-  ${filedsSelected}
+  ${fieldsSelected}
   VALUES 
   ${values}
   `

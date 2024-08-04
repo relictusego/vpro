@@ -36,6 +36,13 @@ export const DmlStatement = {
       modifiedTime TEXT                      -- 修改时间（包括添加时间）
     );
   `,
+  CREATE_TABLE_t_file_rank: `
+      CREATE TABLE ${tableNameMap.fileRank} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 主键id，自增
+      filePath TEXT UNIQUE,                  -- 文件路径
+      freq INTEGER                           -- 序号
+    );
+  `,
   },
   deletion: {
     DROP_TABLE_IF_EXISTS_t_script_bk: `

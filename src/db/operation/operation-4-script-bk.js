@@ -51,7 +51,7 @@ export const operationForScriptBk = {
   deletion: {
     /**
      * delete the rows of which id is in the range named idList
-     * @param {Number} idList the list consits of ids that are about to be deleted
+     * @param {Number} idList the list consists of ids that are about to be deleted
      * @returns {Number} the number of rows affected
      */
     DELETE_BY_IDS: (idList) => {
@@ -86,20 +86,20 @@ export const operationForScriptBk = {
       WHERE id = ${id}
       `
       console.log('sql-=+====>', sql);
-      return runSql(sql).then(res => {return res[0]})
+      return runSql(sql, OPERATION_TYPE.SELECTION).then(res => {return res[0]})
     },
     COUNT: () => {
       const sql = `
       SELECT COUNT(*) FROM ${tableNameMap.scriptBk}
       `
-      return runSql(sql).then(res => {return res[0]["COUNT(*)"]})
+      return runSql(sql, OPERATION_TYPE.SELECTION).then(res => {return res[0]["COUNT(*)"]})
     },
     SELECT_BY_NO: (no) => {
       const sql = `
       SELECT * FROM ${tableNameMap.scriptBk}
       WHERE no = ${no}
       `
-      return runSql(sql).then(res => {return res[0]})
+      return runSql(sql, OPERATION_TYPE.SELECTION).then(res => {return res[0]})
     }
   },
   update: {

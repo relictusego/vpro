@@ -6,7 +6,7 @@ import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 const path = require('path')
 const fs = require('fs')
 import { bindEventWithIpc } from '@/js/ipc-event'
-import { BOUNDS } from '@/js/constants'
+import { BOUNDS, ELECTRON_DIR, DEFAULT_CONFIG_DEST } from '@/js/constants'
 
 const isDevelopment = process.env.NODE_ENV !== 'production'
 let win
@@ -118,6 +118,9 @@ if (isDevelopment) {
   }
 }
  
-import { initDb, runTransaction } from './db/init-db'
+import { initDb } from './db/init-db'
+fs.mkdirSync(path.join(app.getPath('userData'), ELECTRON_DIR), { recursive: true });
 initDb(app)
+
+
 

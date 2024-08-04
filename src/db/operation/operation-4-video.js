@@ -22,7 +22,7 @@ export const operationForVideo = {
   deletion: {
     /**
      * delete the rows of which id is in the range named idList
-     * @param {Number} idList the list consits of ids that are about to be deleted
+     * @param {Number} idList the list consists of ids that are about to be deleted
      * @returns {Number} the number of rows affected
      */
     DELETE_BY_IDS: (idList) => {
@@ -46,7 +46,7 @@ export const operationForVideo = {
      SELECT * FROM ${tableNameMap.video}
      WHERE id = ${id}  
      `
-     return runSql(sql).then(res => {return res[0]})
+     return runSql(sql, OPERATION_TYPE.SELECTION).then(res => {return res[0]})
     },
     /**
      * @param {String} status condition for selection
@@ -57,7 +57,7 @@ export const operationForVideo = {
       SELECT * FROM ${tableNameMap.video}
       WHERE status = '${status}'
       `
-      return runSql(sql)
+      return runSql(sql, OPERATION_TYPE.SELECTION)
     },
     /**
      * @returns an array of objects of which structure is {'id': 1}
@@ -69,7 +69,7 @@ export const operationForVideo = {
       DESC
       LIMIT 0, 1
       `
-      return runSql(sql).then(res => {return res[0]['id']})
+      return runSql(sql, OPERATION_TYPE.SELECTION).then(res => {return res[0]['id']})
     }
   },
   update: {
@@ -79,7 +79,7 @@ export const operationForVideo = {
      */
     UPDATE: (video) => {
       const sql = generateUpdateStatement(fieldsExceptId, video, tableNameMap.video)
-      return runSql(sql)
+      return runSql(sql, OPERATION_TYPE.UPDATE)
     }
   }
   

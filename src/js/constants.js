@@ -2,14 +2,15 @@
  * for ScriptCreation.vue, set the number of rows when first entry
  */
 export const DEFAULT_ROW_NUM = 8
+export const ELECTRON_DIR = 'resource'
 /**
- * the path where video scripts are stored
+ * the path where configurations are stored
  */
-export const DEFAULT_VIDEO_DEST = 'resource/video.json'
+export const DEFAULT_CONFIG_DEST = `${ELECTRON_DIR}/config.json`
 /**
  * the path where the database is
  */
-export const DEFAULT_BD_DEST = 'resource/vpro.db'
+export const DEFAULT_BD_DEST = `${ELECTRON_DIR}/vpro.db`
 /**
  * the titles of a video script
  */
@@ -28,7 +29,7 @@ export const SPEC = {
     FILE_EXPLORER: 'FileExplorer',
   },
   type: {
-   FILE_SHARE: 'FileShare' 
+   FILE_SHARE: 'FileShare'
   }
 }
 
@@ -49,6 +50,7 @@ export const tableNameMap = {
   scriptRows: 't_script_row',
   video: 't_video',
   scriptBk: 't_script_bk',
+  fileRank: 't_file_rank'
 }
 
 /**
@@ -62,8 +64,17 @@ export const STATUS = {
 /**
  * statistic for  all transactional operations
  */
-export const TRASACTIONS = {
+export const TRANSACTIONS = {
   SAVE_SCRIPT_ROWS: 'saveScriptRows',
-  RECREATE_SCRIPT_BK: 'receateScriptBk',
+  RECREATE_SCRIPT_BK: 'recreateScriptBk',
   INSERT_SCRIPT_BK_AFTER_DELETION: 'insertScriptBkAfterDeletion',
+}
+
+export const EXTENSIONS = {
+  // audition suffixes
+  AUDIO: [".mp3", ".wav", ".flac", ".aac", ".ogg", ".wma", ".m4a"],
+  // video suffixes
+  VIDEO: [".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v"],
+  // image suffixes
+  IMAGE: [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".svg", ".ico"]
 }

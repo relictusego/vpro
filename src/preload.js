@@ -16,16 +16,15 @@ import { contextBridge, ipcRenderer } from 'electron'
 //       // Deliberately strip event as it includes `sender`
 //       ipcRenderer.on(channel, (event, ...args) => func(...args))
 //     }
-//   }  
+//   }
 // })
 
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  addOneVideoInFile: (videoInfo) => ipcRenderer.send('add-one-video-in-file', videoInfo),
+  addRowInJsonFile: (info) => ipcRenderer.send('add-row-in-json-file', info),
   fr: async (filePath) => {
     try {
-      const fileContent = await ipcRenderer.invoke('f-r', filePath);
-      return fileContent;
+      return await ipcRenderer.invoke('f-r', filePath);
     } catch (error) {
       console.error('Error fetching file content:', error);
       throw error;
@@ -33,17 +32,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   fw: (textInfo) => ipcRenderer.send('f-w', textInfo),
   locateFileInOs: (filePath) => ipcRenderer.send('locate-file-in-os', filePath),
-  subfilesInDir: async (rootPath) => {
+  subfilePathsInDir: async (rootPath) => {
     return await ipcRenderer.invoke('subfiles-in-dir', rootPath)
   },
-  onDataWhtinVues: (callback) => {
+  onDataWithinVues: (callback) => {
     ipcRenderer.on('on-data-within-vues', (event, data) => callback(event, data));
   },
   updateDataWithinVues: (data) => ipcRenderer.send('update-data-within-vues', data),
   openNewWindow: (windowInfo) => ipcRenderer.send('open-new-window', windowInfo),
-  showSaveDialog: () => ipcRenderer.invoke('dialog:showSaveDialog'),
+  showSaveDialog: (info) => ipcRenderer.invoke('dialog:showSaveDialog', info),
+  openDirectory: (info) => ipcRenderer.invoke('open-directory', info),
   getCurrentWindowBounds: () => ipcRenderer.invoke('window:getBounds'),
-  executeSql: async (info) => { return await ipcRenderer.invoke('excute-sql', info)},
+  executeSql: async (info) => { return await ipcRenderer.invoke('execute-sql', info)},
   transact: async (transactionInfo) => { return await ipcRenderer.invoke('transact', transactionInfo)},
+  fileSearch: async (info) => { return await ipcRenderer.invoke('file-search', info)},
 })
 
