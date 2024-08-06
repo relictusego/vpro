@@ -1,21 +1,21 @@
-import { BOUNDS, tableNameMap } from './constants'
+import { BOUNDS, tableNameMap } from '../constants'
 import { operationForScriptRow } from '@/db/operation/operation-4-script-row'
 import { operationForVideo } from '@/db/operation/operation-4-video'
 import { operationForScriptBk } from '@/db/operation/operation-4-script-bk'
 import { operationForFileRank } from '@/db/operation/operation-4-file-rank'
+import { operationForGlobalShortcut } from '@/db/operation/operation-4-global-shortcut'
 import { transactionHandler } from '@/db/operation/transaction-handler'
-import { searchFilesByKeyword } from './functions/ipc-functions'
+import { searchFilesByKeyword, createNewWindow } from '../functions/ipc-functions'
 import util from 'util'
+import { bindGlobalShortcut } from './ipc-global-shortcut'
 
-export function bindEventWithIpc(kit) {
-  const { app, protocol, BrowserWindow, ipcMain, shell, path, fs, preloadPath, dialog } = kit
+export function bindEventWithIpc(kits) {
+  const { app, protocol, BrowserWindow, ipcMain, shell, path, fs, preloadPath, dialog, globalShortcut } = kits
 
   // write one video info into local file
   ipcMain.on('add-row-in-json-file', (event, videoInfo) => {
     console.log(videoInfo);
     const { fieldName, fieldValue, dest } = JSON.parse(videoInfo);
-    // console.log(`videoName = ${videoName}`);
-    // console.log(`scripts=====> ${JSON.stringify(scripts, null, 2)}`);
     const filePath = path.join(app.getPath('userData'), dest)
     let contentObj = {}
     try {
@@ -26,7 +26,7 @@ export function bindEventWithIpc(kit) {
       console.log(e);
     }
     contentObj[fieldName] = fieldValue;
-    console.log(`filePath ===> ${filePath}`);
+    // console.log(`filePath ===> ${filePath}`);
     console.log(contentObj);
     fs.writeFileSync(filePath, JSON.stringify(contentObj, null, 2));
   })
@@ -72,8 +72,8 @@ export function bindEventWithIpc(kit) {
     const stat = util.promisify(fs.stat)
     const stats = await stat(rootPath)
     // return empty arr if is a file
-    console.log(`用时：${Date.now() - start} => ${stats.isDirectory()  }`);
-    return stats.isDirectory()    
+    console.log(`用时：${Date.now() - start} => ${stats.isDirectory()}`);
+    return stats.isDirectory()
   })
 
   ipcMain.handle('subfiles-in-dir', async (event, rootPath) => {
@@ -98,41 +98,12 @@ export function bindEventWithIpc(kit) {
   })
 
 
-  function createNewWindow(route, bounds) {
-    let newWindow = new BrowserWindow({
-      width: BOUNDS.WIDTH,
-      height: BOUNDS.HEIGHT,
-      x: bounds.x,
-      y: bounds.y,
-      webPreferences: {
-        preload: preloadPath,
-        nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION,
-        contextIsolation: !process.env.ELECTRON_NODE_INTEGRATION,
-        enableRemoteModule: true,
-        webSecurity: false,
-      },
-      autoHideMenuBar: true
-    });
-
-    const url = process.env.WEBPACK_DEV_SERVER_URL
-      ? `${process.env.WEBPACK_DEV_SERVER_URL}#/${route}`
-      : `app://./index.html#/${route}`;
-
-
-    // const filePath = path.join(app.getPath('userData'), 'url.txt')
-
-    // console.log(`filePath ===> ${filePath}`);
-    // fs.appendFileSync(filePath, url + '\r\n');
-    newWindow.loadURL(url);
-  }
-
-
   ipcMain.on('open-new-window', (event, windowInfo) => {
     try {
-      const { url, bounds } = JSON.parse(windowInfo)
+      const { href, bounds } = JSON.parse(windowInfo)
       // place FileExplorer on the left of ScriptCreation
       bounds.x -= BOUNDS.WIDTH
-      createNewWindow(url, bounds)
+      createNewWindow(kits, href, bounds)
     } catch (error) {
       throw new Error('窗口创建失败', error)
     }
@@ -198,6 +169,7 @@ export function bindEventWithIpc(kit) {
   operationMap[tableNameMap.video] = operationForVideo
   operationMap[tableNameMap.scriptBk] = operationForScriptBk
   operationMap[tableNameMap.fileRank] = operationForFileRank
+  operationMap[tableNameMap.globalShortcut] = operationForGlobalShortcut
 
   ipcMain.handle('execute-sql', (event, info) => {
     console.log(info);
@@ -249,5 +221,12 @@ export function bindEventWithIpc(kit) {
     } catch (error) {
       return false
     }
+  })
+
+  ipcMain.handle('bind-global-shortcut', (event, info) => {
+    const { shortcut, href } = info
+    console.log(`shortcut=${shortcut}`);
+    
+    return bindGlobalShortcut(kits, href, shortcut)
   })
 }

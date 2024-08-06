@@ -77,9 +77,10 @@ export async function initDb(app) {
       console.log('Connected to the SQLite database.');
       // Create a table
       try {
-        await runSql(DmlStatement.creation.CREATE_TABLE_t_script_row);
-        await runSql(DmlStatement.creation.CREATE_TABLE_t_video);
-        await runSql(DmlStatement.creation.CREATE_TABLE_t_file_rank);
+        runSql(DmlStatement.creation.CREATE_TABLE_t_script_row);
+        runSql(DmlStatement.creation.CREATE_TABLE_t_video);
+        runSql(DmlStatement.creation.CREATE_TABLE_t_file_rank);
+        runSql(DmlStatement.creation.CREATE_TABLE_t_global_shortcut);
       } catch (e) {
         // pass
         // console.log(e);

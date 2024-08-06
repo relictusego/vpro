@@ -2,7 +2,7 @@
   <div class="container" ref="container">
     <input type="text" :placeholder="dynamicPlaceholder" v-model="keywordForSearching" ref="searchInput">
     <button @click="keywordForSearching = ''">清除</button>
-    <button :class="{ 'regex': regexMode }" @click="toggleSearchMode">正则</button>
+    <button :class="{ 'clicked-button': regexMode }" @click="toggleSearchMode">正则</button>
   </div>
 </template>
 
@@ -31,7 +31,7 @@ export default {
     //     this.closeWin();
     //   }
     // },
-    handleKeyDown() {
+    handleKeyDown(event) {
       if (event.key === 'Escape') {
         console.log(this.parentData.type);
         this.closeWin()
@@ -48,7 +48,9 @@ export default {
         const info = {
           purpose: 'updateSubFilePaths',
           data: filePaths,
-          type: this.parentData.type
+          type: this.parentData.type,
+          regexMode: this.regexMode,
+          keyword: keyword
         }
         this.$emit('fileSearchEvent', info)
       })
@@ -91,6 +93,7 @@ export default {
 
 <style scoped>
 .container {
+  width: 300px;
   margin-bottom: 5px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   background-color: azure;
@@ -107,7 +110,7 @@ export default {
   font-size: 25px;
 }
 
-.regex {
+.clicked-button {
   background-color: rgb(211, 192, 192);
 }
 </style>

@@ -51,5 +51,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   fileSearch: async (info) => { return await ipcRenderer.invoke('file-search', info)},
   saveFiles: async (fileObjs) => { return await ipcRenderer.invoke('save-files', fileObjs)},
   deleteFile: async (filePath) => { return await ipcRenderer.invoke('delete-file', filePath)},
+  bindGlobalShortcut: async (info) => { return await ipcRenderer.invoke('bind-global-shortcut', info)},
 })
 

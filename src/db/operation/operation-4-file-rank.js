@@ -1,4 +1,4 @@
-import { runSql,  generateInsertionStatement, generateUpdateStatement } from "../init-db"
+import { runSql, generateInsertionStatement, generateUpdateStatement } from "../init-db"
 import { OPERATION_TYPE, tableNameMap } from "@/js/constants"
 
 const fieldsExceptId = ['filePath', 'freq']
@@ -28,22 +28,43 @@ export const operationForFileRank = {
       const sql = `
       DELETE FROM ${tableNameMap.fileRank}
       WHERE id IN
-      ${ '(' + idList.join(', ') + ')' }
+      ${'(' + idList.join(', ') + ')'}
       `
       return runSql(sql, OPERATION_TYPE.DELETION)
     },
 
   },
   selection: {
+    /**
+     * get an array of file rank object by specifying file paths
+     * @param {Array<String>} filePaths 
+     * @returns {Promise<Object>} resolve file rank object
+    */
     SELECT_BY_FILE_PATHS: (filePaths) => {
       const sql = `
-      SELECT * FROM ${tableNameMap.fileRank}
-      WHERE filePath IN
-      ${ '(\'' + filePaths.join('\', \'') + '\')' }
+     SELECT * FROM ${tableNameMap.fileRank}
+     WHERE filePath IN
+     ${'(\'' + filePaths.join('\', \'') + '\')'}
+     `
+      return runSql(sql, OPERATION_TYPE.SELECTION)
+    },
+    /**
+     * get an array of file rank object by specifying frequency
+     * @param {Number} freq frequency of the usage of the file
+     * @returns {Promise<Object>} resolve file rank object
+     */
+    SELECT_BY_FREQ: (freq) => {
+      const sql = `
+      SELECT
+        * 
+      FROM
+        t_file_rank
+      WHERE
+        freq >= ${freq}
       `
-      console.log(`sql------------->${sql}`);
       return runSql(sql, OPERATION_TYPE.SELECTION)
     }
+
   },
   update: {
     /**
@@ -59,7 +80,7 @@ export const operationForFileRank = {
      * @param {String} filePath the file path specified to plus one for rank's freq
      * @returns {Promise<any>} - A promise that resolves with the query result
      */
-    ONE_PLUS_FREQ_BY_FILE_PATH: function(filePath) {
+    ONE_PLUS_FREQ_BY_FILE_PATH: function (filePath) {
       const sql = `
       UPDATE ${tableNameMap.fileRank} 
       SET freq = (
@@ -78,5 +99,5 @@ export const operationForFileRank = {
   }
 
 
- }
+}
 

@@ -47,10 +47,10 @@
             <textarea v-model="script.comment" @blur="update(script, index)"></textarea>
           </div>
           <div class="general">
-            <textarea v-model="script.createdTime" readonly></textarea>
+            <textarea v-model="script.createdTime" readonly style="user-select: none;"></textarea>
           </div>
           <div class="general">
-            <textarea v-model="script.modifiedTime" readonly></textarea>
+            <textarea v-model="script.modifiedTime" readonly style="user-select: none;"></textarea>
           </div>
           <div class="script-menu-bar-container">
             <div style="display: inline-block;">
@@ -76,13 +76,15 @@
         <li @click="copyFilePath">复制路径</li>
         <li @click="locateFile">定位文件</li>
         <li @click="removeImg">移除文件</li>
+        <li @click="insertRow(0)">往上添行</li>
+        <li @click="insertRow(1)">往下添行</li>
       </ul>
       <div>
         <button @click="openFileExplorer">文件浏览</button>
         <button @click="scrollToTop">顶部</button>
         <button @click="scrollToBottom">底部</button>
         <button @click="save">保存</button>
-        <button @click="addRow">新增</button>
+        <button @click="appendRow">新增</button>
         <button @click="test">test</button>
         <input type="text" style="width: 70px;" placeholder="关键字搜索" @blur="keywordSearch"
           v-model="infoForKeywordSearching.keyword">
@@ -311,7 +313,7 @@ export default {
     openFileExplorer() {
       window.electronAPI.getCurrentWindowBounds().then(bounds => {
         const windowInfo = {
-          'url': 'fileExplorer',
+          'href': '#/fileExplorer',
           'bounds': { 'x': bounds.x, 'y': bounds.y }
         }
         window.electronAPI.openNewWindow(JSON.stringify(windowInfo));
@@ -332,8 +334,7 @@ export default {
       const container = this.$refs.scrollContainer;
       const containerRect = container.getBoundingClientRect();
 
-      // 获取所有条目的 DOM 元素
-      const items = container.querySelectorAll('.general'); // 修改为你的条目类名
+      const items = container.querySelectorAll('.general'); 
 
       const visibleScriptRowIndices = [];
 
@@ -405,10 +406,18 @@ export default {
         window.electronAPI.executeSql(JSON.stringify(info))
       }
     },
-    addRow() {
+    appendRow() {
       this.scripts.push(new Script())
       this.$nextTick(() => {
         this.scrollToBottom()
+        this.scriptsBk = JSON.parse(JSON.stringify(this.scripts))
+        this.updateScriptBkAndScriptsBkIdInDB()
+      })
+    },
+    insertRow(delta) {
+      const index = this.contextMenu.index + delta
+      this.scripts.splice(index, 0, new Script())
+      this.$nextTick(() => {
         this.scriptsBk = JSON.parse(JSON.stringify(this.scripts))
         this.updateScriptBkAndScriptsBkIdInDB()
       })
@@ -477,8 +486,6 @@ export default {
       this.update(this.scripts[this.contextMenu.index], this.contextMenu.index)
     },
     handleScroll() {
-      // 处理滚动事件的方法
-      console.log('滚动事件触发');
       const data = newDataWithinVues(SPEC.vueNames.SCRIPT_CREATION,
         SPEC.vueNames.FILE_EXPLORER, SPEC.type.FILE_SHARE,
         {
@@ -489,8 +496,22 @@ export default {
       )
       window.electronAPI.updateDataWithinVues(data);
     },
+    handleKeyDown() {
+      console.log(`按下的键: ${event.key}`);
+      const capsLockStatus = event.getModifierState("CapsLock")
+
+      // make it works no matter caps lock is on or off
+      if (event.ctrlKey && event.key === 'z') {
+        if (capsLockStatus) this.nextStep(1)
+        else this.nextStep(-1)
+      } else if (event.ctrlKey && event.key === 'Z') {
+        if (capsLockStatus) this.nextStep(-1)
+        else this.nextStep(1)
+      }
+    }
   },
   mounted() {
+    window.addEventListener('keydown', this.handleKeyDown)
 
     window.electronAPI.onDataWithinVues((event, data) => {
       // update the data
@@ -592,6 +613,9 @@ export default {
 
     });
 
+  },
+  unmounted() {
+    window.removeEventListener('keydown', this.handleKeyDown)
   },
   props: {
     videoId: null

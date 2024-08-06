@@ -43,6 +43,14 @@ export const DmlStatement = {
       freq INTEGER                           -- 序号
     );
   `,
+  CREATE_TABLE_t_global_shortcut: `
+      CREATE TABLE ${tableNameMap.globalShortcut} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 主键id，自增
+      keysCombination TEXT UNIQUE,           -- 按键组合
+      href TEXT                              -- 对应路由href
+    );
+  `,
+
   },
   deletion: {
     DROP_TABLE_IF_EXISTS_t_script_bk: `

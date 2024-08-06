@@ -1,15 +1,30 @@
 'use strict'
 
-import { app, protocol, BrowserWindow, ipcMain, shell, dialog } from 'electron'
+import { app, protocol, BrowserWindow, ipcMain, shell, dialog, globalShortcut } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 // import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
 const path = require('path')
 const fs = require('fs')
-import { bindEventWithIpc } from '@/js/ipc-event'
+import { bindEventWithIpc } from '@/js/ipc/ipc-event'
+import { bindGlobalShortcutWhenStartsUp } from '@/js/ipc/ipc-global-shortcut'
 import { BOUNDS, ELECTRON_DIR, DEFAULT_CONFIG_DEST } from '@/js/constants'
 
 const isDevelopment = process.env.NODE_ENV !== 'production'
 let win
+
+const kits = {
+  'app': app,
+  'protocol': protocol,
+  'BrowserWindow': BrowserWindow,
+  'ipcMain': ipcMain,
+  'shell': shell,
+  'path': path,
+  'fs': fs,
+  'preloadPath': path.join(__dirname, 'preload.js'),
+  'dialog': dialog,
+  'mainWindow': win,
+  'globalShortcut': globalShortcut,
+}
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
@@ -33,6 +48,9 @@ async function createWindow() {
     autoHideMenuBar: true
   })
 
+  win.setMaximumSize(BOUNDS.MAX_WIDTH, BOUNDS.MAX_HEIGHT)
+  win.setMinimumSize(BOUNDS.MIN_WIDTH, BOUNDS.MIN_HEIGHT)
+
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
     await win.loadURL(process.env.WEBPACK_DEV_SERVER_URL)
@@ -43,23 +61,15 @@ async function createWindow() {
     win.loadURL('app://./index.html')
   }
 
-  const kit = {
-    'app': app,
-    'protocol': protocol,
-    'BrowserWindow': BrowserWindow,
-    'ipcMain': ipcMain,
-    'shell': shell,
-    'path': path,
-    'fs': fs,
-    'preloadPath': path.join(__dirname, 'preload.js'),
-    'dialog': dialog,
-    'mainWindow': win,
-    
-  }
+  win.on('close', (event) => {
+    event.preventDefault()
+    win.removeAllListeners('close')
+    win.destroy()
+  })
 
   // place the function below to guarantee mainWindow has been initialized
   // before it's used in the function below
-  bindEventWithIpc(kit)
+  bindEventWithIpc(kits)
 }
 
 // Quit when all windows are closed.
@@ -99,9 +109,25 @@ app.on('ready', async () => {
     console.error('Unhandled promise rejection in main process:', reason);
     // 可以在这里记录错误日志或执行其他操作
   });
-  
+
+  bindGlobalShortcutWhenStartsUp(kits)
   createWindow()
 })
+
+// app.whenReady().then(() => {
+//   // Register a global shortcut
+//   const ret = globalShortcut.register('Alt+1', () => {
+//     console.log('Alt+1 is pressed');
+//     // Perform your desired action here
+//   });
+
+//   if (!ret) {
+//     console.log('Registration failed');
+//   }
+
+//   // Check whether a shortcut is registered
+//   console.log(globalShortcut.isRegistered('Alt+1'));
+// });
 
 // Exit cleanly on request from parent process in development mode.
 if (isDevelopment) {

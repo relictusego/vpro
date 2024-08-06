@@ -14,148 +14,164 @@
     </div>
     <input type="text" placeholder="输入视频名" v-model="videoNameCreated">
     <button @click="create">新建</button>
+    <button @click="test">test</button>
+    <ShortcutSetting :parentData="shortcutSettingData"></ShortcutSetting>
   </div>
-</template> 
+</template>
 
 <script>
-import { TITLES, tableNameMap, OPERATION_TYPE, STATUS } from '@/js/constants';  
+import { TITLES, tableNameMap, OPERATION_TYPE, STATUS } from '@/js/constants';
+import ShortcutSetting from './kit/ShortcutSetting.vue'
 
-  export default {
-    data(){
-      return{
-        videos: [],
-        videoNameCreated: ''
-      }
-    },
-    methods:{
-      async exportVideo(name, id) {
-        const videoInfo = {
-          defaultPath: name
-        }
-        const { filePath } = await window.electronAPI.showSaveDialog(JSON.stringify(videoInfo))
-        if (!filePath) return
-        console.log(filePath);
-        
-        const info = {
-          tableName: tableNameMap.scriptRows, 
-          operation: OPERATION_TYPE.SELECTION, 
-          funcName: 'SELECT_BY_VIDEO_ID', 
-          data: id
-        }
-        let scripts = await window.electronAPI.executeSql(JSON.stringify(info))
-        const fieldNames = ['outline', 'storyBoard', 'filePath', 'subtitle', 'comment', 'createdTime', 'modifiedTime']
-        try {
-          let txt = '';
-          txt += TITLES.join(',') + '\n'
-          for (const script of scripts) {
-            const line = fieldNames.map(fieldName => {
-              const fieldValue = script[fieldName];
-              // Escape double quotes and enclose the value in double quotes
-              return fieldValue ? `"${String(fieldValue).replace(/"/g, '""')}"` : ""
-            }).join(','); // Join fields with a comma
-            txt += line + '\n'; // Add newline character
-          }
-          // Save the CSV text to the file
-          await window.electronAPI.fw(JSON.stringify({
-            dest: filePath,
-            text: txt
-          }));
-        } catch (error) {
-          alert(error);
-        }
+export default {
+  data() {
+    return {
+      videos: [],
+      videoNameCreated: '',
+      shortcutSettingData: {
+        href: this.$route.href,
+        showDialog: false
       },
-      goToVideo(id){
-        this.$router.push({ name: 'scriptCreation', params: { 'videoId': id } });
-      },
-      async create(){
-        const info = {
-          tableName: tableNameMap.video, 
-          operation: OPERATION_TYPE.INSERTION, 
-          funcName: 'INSERT_VALUES', 
-          data: [{
-            name: this.videoNameCreated,
-            status: '0'
-          }]
-        }      
-        let insertedNum = await window.electronAPI.executeSql(JSON.stringify(info))
-        console.log(`添加了${insertedNum}条视频`);
-        const anotherInfo = {
-          tableName: tableNameMap.video, 
-          operation: OPERATION_TYPE.SELECTION, 
-          funcName: 'SELECT_NEWEST_ID', 
-          data: null
-        } 
-        let newestId = await window.electronAPI.executeSql(JSON.stringify(anotherInfo))
-        console.log('newestId===>', newestId);
-        info.data[0]['id'] = newestId
-        this.videos.push(info.data[0])
-        console.log(this.videos);
-      },
-      async delVideo(id){
-        for(let i = 0; i < this.videos.length; i++) {
-          if (this.videos[i].id === id) {
-            this.videos[i].status = STATUS.DELETED
-            const info = {
-              tableName: tableNameMap.video, 
-              operation: OPERATION_TYPE.UPDATE, 
-              funcName: 'UPDATE', 
-              data: this.videos[i]
-            }      
-            window.electronAPI.executeSql(JSON.stringify(info)).then(deletedNum => {
-              console.log(`删除了${deletedNum}条视频`);
-              this.videos.splice(i, 1)
-            })          
-            break
-          }
-        }
-      }
-    },
-    async mounted() { 
-      const info = {
-        tableName: tableNameMap.video, 
-        operation: OPERATION_TYPE.SELECTION, 
-        funcName: 'SELECT_ALL_WITH_STATUS', 
-        data: STATUS.ORDINARY
-      }      
-      window.electronAPI.executeSql(JSON.stringify(info)).then(videos => {
-        videos.forEach(video => {
-          this.videos.push(video)
-        });
-        console.log(videos);
-      })
     }
-  };
+  },
+  methods: {
+    test(){
+      this.shortcutSettingData.showDialog = !this.shortcutSettingData.showDialog
+    },
+    async exportVideo(name, id) {
+      const videoInfo = {
+        defaultPath: name
+      }
+      const { filePath } = await window.electronAPI.showSaveDialog(JSON.stringify(videoInfo))
+      if (!filePath) return
+      console.log(filePath);
+
+      const info = {
+        tableName: tableNameMap.scriptRows,
+        operation: OPERATION_TYPE.SELECTION,
+        funcName: 'SELECT_BY_VIDEO_ID',
+        data: id
+      }
+      let scripts = await window.electronAPI.executeSql(JSON.stringify(info))
+      const fieldNames = ['outline', 'storyBoard', 'filePath', 'subtitle', 'comment', 'createdTime', 'modifiedTime']
+      try {
+        let txt = '';
+        txt += TITLES.join(',') + '\n'
+        for (const script of scripts) {
+          const line = fieldNames.map(fieldName => {
+            const fieldValue = script[fieldName];
+            // Escape double quotes and enclose the value in double quotes
+            return fieldValue ? `"${String(fieldValue).replace(/"/g, '""')}"` : ""
+          }).join(','); // Join fields with a comma
+          txt += line + '\n'; // Add newline character
+        }
+        // Save the CSV text to the file
+        await window.electronAPI.fw(JSON.stringify({
+          dest: filePath,
+          text: txt
+        }));
+      } catch (error) {
+        alert(error);
+      }
+    },
+    goToVideo(id) {
+      this.$router.push({ name: 'scriptCreation', params: { 'videoId': id } });
+    },
+    async create() {
+      const info = {
+        tableName: tableNameMap.video,
+        operation: OPERATION_TYPE.INSERTION,
+        funcName: 'INSERT_VALUES',
+        data: [{
+          name: this.videoNameCreated,
+          status: '0'
+        }]
+      }
+      let insertedNum = await window.electronAPI.executeSql(JSON.stringify(info))
+      console.log(`添加了${insertedNum}条视频`);
+      const anotherInfo = {
+        tableName: tableNameMap.video,
+        operation: OPERATION_TYPE.SELECTION,
+        funcName: 'SELECT_NEWEST_ID',
+        data: null
+      }
+      let newestId = await window.electronAPI.executeSql(JSON.stringify(anotherInfo))
+      console.log('newestId===>', newestId);
+      info.data[0]['id'] = newestId
+      this.videos.push(info.data[0])
+      console.log(this.videos);
+    },
+    async delVideo(id) {
+      for (let i = 0; i < this.videos.length; i++) {
+        if (this.videos[i].id === id) {
+          this.videos[i].status = STATUS.DELETED
+          const info = {
+            tableName: tableNameMap.video,
+            operation: OPERATION_TYPE.UPDATE,
+            funcName: 'UPDATE',
+            data: this.videos[i]
+          }
+          window.electronAPI.executeSql(JSON.stringify(info)).then(deletedNum => {
+            console.log(`删除了${deletedNum}条视频`);
+            this.videos.splice(i, 1)
+          })
+          break
+        }
+      }
+    }
+  },
+  mounted() {
+    const info = {
+      tableName: tableNameMap.video,
+      operation: OPERATION_TYPE.SELECTION,
+      funcName: 'SELECT_ALL_WITH_STATUS',
+      data: STATUS.ORDINARY
+    }
+    window.electronAPI.executeSql(JSON.stringify(info)).then(videos => {
+      videos.forEach(video => {
+        this.videos.push(video)
+      });
+      console.log(videos);
+    })
+  },
+  components: {
+    ShortcutSetting,
+
+  }
+};
 </script>
 
 <style scoped>
-  .video {
-    width: 300px;
-  }
+.video {
+  width: 300px;
+}
 
-  .del {
-    width: 120px;
-  }
+.del {
+  width: 120px;
+}
 
-  div.video{
-    float: left;
-  }
+div.video {
+  float: left;
+}
 
-  /* div {
+/* div {
     border: 1px solid black;
   } */
 
-  div.del{
-    float: left;
-  }
+div.del {
+  float: left;
+}
 
-  .video-container {
-    border: 1px solid red;
-    display: inline-block; /* This makes the container adjust to fit its content */
-    padding: 5px;
-  }
+.video-container {
+  border: 1px solid red;
+  display: inline-block;
+  /* This makes the container adjust to fit its content */
+  padding: 5px;
+}
 
-  .video-container .video,
-  .video-container .del {
-    display: inline-block; /* Ensure elements are inline */
-  }
+.video-container .video,
+.video-container .del {
+  display: inline-block;
+  /* Ensure elements are inline */
+}
 </style>

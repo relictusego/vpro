@@ -1,34 +1,38 @@
 <template>
-  <div style="background-color: rgba(2, 255, 255, 3); height: 925px;">
+  <div class="container">
     <div class="left-side">
       <div class="path-selector" @click="change()">
         <span style="user-select: none;">{{ curPath }}</span>
         <span v-if="curPath === ''" style="user-select: none;">选择文件夹</span>
       </div>
-      &nbsp;<input type="text" v-model="keywordForFilterFolder" ref="kwInput" placeholder="输入关键字筛选文件夹">
-      <button @click="resetFileList" type="button">清空</button>
       <div class="path-displayer">
         <div v-for="(file, index) in fileList" :key="index">
           <div class="file-tab" @dblclick="diveIntoDir(index)" :class="{ selected: selectedIndex === index }"
-            @click="selectFile(index)" :style="{ fontWeight: file.isDir ? 'bold' : 'normal' }">
-            {{ file.name }}
+            @click="selectFile(index)">
+            <div style="width: 50%;" :style="{ fontWeight: file.isDir ? 'bold' : 'normal' }">{{ file.name }}</div>
+            <div v-if="file.len > 0">{{ file.len }}</div>
           </div>
         </div>
       </div>
+      <!-- <div style="height: 20px;"></div> -->
+      &nbsp;<input type="text" v-model="keywordForFilterFolder" ref="kwInput" placeholder="输入关键字筛选文件夹">
+      <button @click="resetFileList" type="button">清空</button>
+      <button @click="recentlyMostUsed" :class="{ 'clicked-button': horizontalControlBarData.show }">常用文件</button>
+      <HorizontalControlBar v-if="horizontalControlBarData.show"
+        @horizontalControlBarEvent="handleHorizontalControlBarEvent" :parentData="horizontalControlBarData">
+      </HorizontalControlBar>
     </div>
     <div class="right-side" @dragover.prevent="handleDragOver" @dragleave="handleDragLeave" @drop.prevent="handleDrop"
-      :class="{ 'dragging': isDraggingFile }">
+      @wheel="handleWheel" :class="{ 'dragging': isDraggingFile }">
       <input type="file" ref="fileInput" @change="handleFileChange" style="display: none;" />
       <div v-for="(subFilePath, index) in subFilePaths" :key="index">
-        <div class="pic-grid" @contextmenu.prevent="showContextMenu($event, index, subFilePath)">
-          <div v-if="subFilePath.indexOf('.') > 0" class="number-badge">{{ subFilePathRankMap[subFilePath] > 0 ?
-            subFilePathRankMap[subFilePath] : 0 }}</div>
+        <div class="pic-grid" :style="picGrid" @contextmenu.prevent="showContextMenu($event, index, subFilePath)">
+          <div v-if="subFilePath.indexOf('.') > 0 && showFileRank" class="number-badge">{{
+            subFilePathRankMap[subFilePath] > 0 ?
+              subFilePathRankMap[subFilePath] : 0 }}</div>
           <img v-if="subFilePath.indexOf('.') > 0" :src="'file:///' + subFilePath" alt="">
-          <div v-if="subFilePath.indexOf('.') <= 0">{{ subFilePath.substring(subFilePath.lastIndexOf("\\") + 1) }}</div>
           <div v-if="mimeType(subFilePath) === 'VIDEO' || mimeType(subFilePath) === 'AUDIO'"
             style="width: 100%; height: 100%;" @click="togglePlay(index, mimeType(subFilePath))">
-            <div v-if="mimeType(subFilePath) === 'AUDIO'" style="user-select: none;">{{
-              subFilePath.substring(subFilePath.lastIndexOf('\\') + 1) }}</div>
             <video v-if="mimeType(subFilePath) === 'VIDEO'" :src="'file:///' + subFilePath"
               style="max-width: 100%;  max-height: 100%;  object-fit: cover; " :ref="'videoMedia_' + index" autoplay
               muted></video>
@@ -36,9 +40,12 @@
               :ref="'audioMedia_' + index"></audio>
           </div>
         </div>
-        <div style="width: 200px;">{{ subFilePath.substring(subFilePath.lastIndexOf('\\') + 1) }}</div>
+        <div style="width: 200px;" :style="filenameDivStyle" ref="filenameDivs">{{
+          subFilePath.substring(subFilePath.lastIndexOf('\\') + 1) }}
+        </div>
       </div>
     </div>
+
     <!-- Context Menu element -->
     <ul v-if="contextMenu.visible" class="context-menu"
       :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
@@ -47,7 +54,8 @@
       <li @click="copyFilePath" @mouseenter="hideScriptNumMenu">复制路径</li>
       <li @click="locateFile" @mouseenter="hideScriptNumMenu">定位文件</li>
       <li @click="deleteFile" @mouseenter="hideScriptNumMenu">删除文件</li>
-      <li v-if="showFileSearch" @click="diveIntoDirByPath" @mouseenter="hideScriptNumMenu">跳转</li>
+      <li v-if="showFileSearch || horizontalControlBarData.show" @click="diveIntoDirByPath"
+        @mouseenter="hideScriptNumMenu">跳转</li>
     </ul>
 
     <ul v-if="scriptNumMenu.visible" class="context-menu"
@@ -73,6 +81,7 @@
     <FileSearch class="centered-overlay" v-if="showFileSearchInCurDir" @fileSearchEvent="handleFileSearchEvent"
       :parentData="{ path: fileList[selectedIndex].path, type: 2 }" @mousedown="startDrag"
       :style="{ top: componentTop + 'px', left: componentLeft + 'px', position: 'absolute' }"></FileSearch>
+    <ShortcutSetting :parentData="shortcutSettingData"></ShortcutSetting>
 
   </div>
 </template>
@@ -80,9 +89,21 @@
 <script>
 import { SPEC, tableNameMap, OPERATION_TYPE, BOUNDS, DEFAULT_CONFIG_DEST } from '@/js/constants'
 import { newDataWithinVues, mimeType, similarity, delay } from '@/js/functions/vue-functions'
-import FileSearch from './FileSearch.vue'
+import FileSearch from './kit/FileSearch.vue'
 import ShrinkBox from './kit/ShrinkBox.vue'
+import HorizontalControlBar from './kit/HorizontalControlBar.vue'
+import ShortcutSetting from './kit/ShortcutSetting.vue'
 
+const PIC_GRID = {
+  WIDTH: 200,
+  HEIGHT: 200,
+  STEP: 10,
+  STEP_BK: 10,
+  MIN_STEP: 10,
+  MAX_STEP: 100,
+  STEP_ACC: 5,
+  MIN: 50
+}
 
 function splitWithSlashOrBackSlash(str) {
   let l = 0, r = 1, len = str.length
@@ -132,6 +153,7 @@ export default {
       keywordForFilterFolder: '',
       showFileSearch: false,
       showFileSearchInCurDir: false,
+      showFileRank: true,
 
       isDragging: false,
       dragStartX: 0,
@@ -144,7 +166,20 @@ export default {
 
       shrinkBoxData: {
         show: false
-      }
+      },
+      horizontalControlBarData: {
+        show: false
+      },
+      picGrid: {
+        width: `${PIC_GRID.WIDTH}px`,
+        height: `${PIC_GRID.HEIGHT}px`,
+      },
+      filenameDivStyle: {},
+
+      shortcutSettingData: {
+        href: this.$route.href,
+        showDialog: false
+      },
 
     }
   },
@@ -186,11 +221,11 @@ export default {
           .then(fileObjList => {
             const curSelectedFile = this.fileList[this.selectedIndex];
             if (curSelectedFile.isDir) {
-              const batchFileInfo = fileObjList.map(fileObj => ({
+              const batchFileInfo = fileObjList.map(({ filename, fileData }) => ({
                 dirPath: curSelectedFile.path,
-                filename: fileObj.filename,
-                fileData: fileObj.fileData
-              }));
+                filename,
+                fileData
+              }))
 
               return window.electronAPI.saveFiles(batchFileInfo)
             }
@@ -250,6 +285,45 @@ export default {
       this.isDraggingFile = false
       this.dragCounter = 0
     },
+    handleWheel(event) {
+      if (event.ctrlKey) {
+        event.preventDefault(); // Prevent default scrolling
+        if (event.deltaY > 0) {
+          // Scroll down
+          let width = Math.max(+this.picGrid.width.replace('px', '') - PIC_GRID.STEP, PIC_GRID.MIN)
+          let height = Math.max(+this.picGrid.height.replace('px', '') - PIC_GRID.STEP, PIC_GRID.MIN)
+          this.picGrid.width = width + 'px'
+          this.picGrid.height = height + 'px'
+          if (PIC_GRID.STEP > PIC_GRID.MIN_STEP) PIC_GRID.STEP -= PIC_GRID.STEP_ACC
+
+
+          if (width < PIC_GRID.WIDTH || height < PIC_GRID.HEIGHT) {
+            this.filenameDivStyle = {
+              'overflow': 'hidden',
+              'white-space': 'nowrap',
+              'text-overflow': 'ellipsis',
+              width: this.picGrid.width
+            }
+            this.showFileRank = false
+          }
+        } else {
+          let width = +this.picGrid.width.replace('px', '') + PIC_GRID.STEP
+          let height = +this.picGrid.height.replace('px', '') + PIC_GRID.STEP
+          // Scroll up
+          this.picGrid.width = width + 'px'
+          this.picGrid.height = height + 'px'
+          PIC_GRID.STEP += PIC_GRID.STEP_ACC
+          if (width >= PIC_GRID.WIDTH || height >= PIC_GRID.HEIGHT) {
+            this.filenameDivStyle = {
+              width: this.picGrid.width
+            }
+            this.showFileRank = true
+          }
+        }
+        console.log(`step: ${PIC_GRID.STEP}`);
+
+      }
+    },
     startDrag(event) {
       this.isDragging = true;
       this.dragStartX = event.clientX - this.componentLeft;
@@ -269,21 +343,40 @@ export default {
       document.removeEventListener('mouseup', this.stopDrag);
     },
     handleFileSearchEvent(info) {
-      switch (info.purpose) {
+      const { purpose, data, type } = info
+      switch (purpose) {
         case 'closeFileSearch':
-          if (info.type === 1) {
-            this.showFileSearch = info.data
+          if (type === 1) {
+            this.showFileSearch = data
             this.updateFileList().then(() => {
               this.selectFile(this.selectedIndex)
             })
-          } else if (info.type === 2) {
-            this.showFileSearchInCurDir = info.data
+          } else if (type === 2) {
+            this.showFileSearchInCurDir = data
             this.selectFile(this.selectedIndex)
           }
           break
         case 'updateSubFilePaths':
-          this.subFilePaths = info.data
-          if (info.type === 1) {
+          const { regexMode, keyword } = info
+          this.subFilePaths = data
+          this.$nextTick(() => {
+            const divs = this.$refs.filenameDivs
+            // mark out the parts that match the keyword
+            if (regexMode) {
+              divs.forEach(div => {
+                let txt = div.textContent
+                let innerHTML = txt.replace(new RegExp(keyword, 'gi'), match => `<span style="background-color: yellow;">${match}</span>`);
+                div.innerHTML = innerHTML
+              })
+            } else {
+              divs.forEach(div => {
+                let txt = div.textContent
+                let innerHTML = txt.replace(keyword, `<span style="background-color: yellow;">${keyword}</span>`)
+                div.innerHTML = innerHTML
+              })
+            }
+          })
+          if (type === 1) {
             // reset only when global search
             this.fileList = []
           }
@@ -372,7 +465,7 @@ export default {
         const addToInput = this.$refs.addToInput;
         if (addToInput) {
           addToInput.focus();
-          addToInput.addEventListener('keydown', this.handleKeyDown, { once: true });
+          addToInput.addEventListener('keydown', (event) => { this.handleKeyDown(event) }, { once: true });
         }
       });
 
@@ -404,6 +497,9 @@ export default {
       console.log(JSON.stringify(this.curPath));
       console.log(this.subFilePaths);
       console.log(this.fileList[this.selectedIndex]);
+      console.log(this.$route.href);
+
+      this.shortcutSettingData.showDialog = !this.shortcutSettingData.showDialog
     },
     change() {
       window.electronAPI.fr(DEFAULT_CONFIG_DEST)
@@ -431,7 +527,8 @@ export default {
         .catch(e => { console.log(e); })
     },
     selectFile(index) {
-      this.selectedIndex = index;
+      this.selectedIndex = index
+      this.horizontalControlBarData.show = false
       this.updateWhenFolderChanged(index)
     },
     backToParentPath() {
@@ -467,7 +564,19 @@ export default {
         })
         .then(() => { this.updateWhenFolderChanged(this.selectedIndex) })
     },
+    // throttle the requests or using a concurrency limit
+    async getFileInfosInBatch(filePaths) {
+      return Promise.all(filePaths.map(async (filePath) => {
+        const len = (await window.electronAPI.subfilePathsInDir(filePath)).length
+        return {
+          path: filePath,
+          isDir: len > 0,
+          len: len
+        };
+      }));
+    },
     async diveIntoDir(index) {
+
       let path = this.fileList[index].path
       // do not dive if there is no subfolder in the folder
       const filePaths = await window.electronAPI.subfilePathsInDir(path)
@@ -484,45 +593,26 @@ export default {
 
       this.curPath = path
       this.fileList = []
-      for (const filePath of filePaths) {
-        // console.log(filePath);
-        this.fileList.push({
-          name: filePath.substring(filePath.lastIndexOf('\\') + 1),
-          path: filePath,
-          isDir: (await window.electronAPI.subfilePathsInDir(filePath)).length !== 0
-        })
+      const fileInfos = await this.getFileInfosInBatch(filePaths)
+      for (const fileInfo of fileInfos) {
+        fileInfo['name'] = fileInfo.path.substring(fileInfo.path.lastIndexOf('\\') + 1)
+        this.fileList.push(fileInfo)
       }
+
 
       await this.updateWhenFolderChanged(this.selectedIndex)
     },
     async diveIntoDirByPath() {
-      // throttle the requests or using a concurrency limit
-      async function determineIfIsDirInBatch(filePaths) {
-        return Promise.all(filePaths.map(async (filePath) => {
-          return {
-            path: filePath,
-            isDir: await window.electronAPI.determineIfIsDir(filePath)
-          };
-        }));
-      }
-
       const path = this.subFilePaths[this.contextMenu.index]
       const parentDir = path.substring(0, path.lastIndexOf('\\'))
       const grandDir = parentDir.substring(0, parentDir.lastIndexOf('\\'))
       const filePaths = await window.electronAPI.subfilePathsInDir(grandDir)
       this.fileList = []
-      const fileInfos = await determineIfIsDirInBatch(filePaths);
+      const fileInfos = await this.getFileInfosInBatch(filePaths);
       for (let i = 0; i < fileInfos.length; i++) {
         let fileInfo = fileInfos[i]
-        this.fileList.push({
-          name: fileInfo.path.substring(fileInfo.path.lastIndexOf('\\') + 1),
-          path: fileInfo.path,
-          /*
-            if call the function like 'await window.electronAPI.determineIfIsDir(filePath)'
-            directly, the time cost of this loop gets unstable 
-          */
-          isDir: fileInfo.isDir
-        })
+        fileInfo['name'] = fileInfo.path.substring(fileInfo.path.lastIndexOf('\\') + 1)
+        this.fileList.push(fileInfo)
         if (fileInfo.path === parentDir) {
           this.selectedIndex = i
         }
@@ -531,6 +621,7 @@ export default {
       let idx = (await this.updateWhenFolderChanged(this.selectedIndex)).indexOf(path)
       this.curPath = grandDir
       this.showFileSearch = false
+      this.horizontalControlBarData.show = false
 
       this.$nextTick(() => {
         const selectedElement = this.$el.querySelectorAll('.pic-grid')[idx]
@@ -550,7 +641,7 @@ export default {
           this.shrinkBoxData['finalTop'] = targetRect.top + window.scrollY
           this.shrinkBoxData['finalLeft'] = targetRect.left + window.scrollX
           this.shrinkBoxData['bkColorRgba'] = `rgba(119, 117, 117, 0.516)`
-          // unit: second
+          // time unit: second
           this.shrinkBoxData['aliveTime'] = 0.4
           delay(this.shrinkBoxData['aliveTime'] * 1000).then(() => {
             this.shrinkBoxData.show = false
@@ -583,12 +674,10 @@ export default {
       const filePaths = await window.electronAPI.subfilePathsInDir(this.curPath)
       // reset fileList
       this.fileList = []
-      for (const filePath of filePaths) {
-        this.fileList.push({
-          name: filePath.substring(filePath.lastIndexOf('\\') + 1),
-          path: filePath,
-          isDir: (await window.electronAPI.subfilePathsInDir(filePath)).length !== 0
-        })
+      const fileInfos = await this.getFileInfosInBatch(filePaths)
+      for (const fileInfo of fileInfos) {
+        fileInfo['name'] = fileInfo.path.substring(fileInfo.path.lastIndexOf('\\') + 1)
+        this.fileList.push(fileInfo)
       }
     },
     /**
@@ -620,7 +709,7 @@ export default {
         console.log('there is an error when page changed:', JSON.stringify(error));
       }
     },
-    handleKeyDown() {
+    handleKeyDown(event) {
       console.log(`按下的键: ${event.key}`);
       let inputting = this.$refs.kwInput === document.activeElement ||
         this.showFileSearch || this.showFileSearchInCurDir
@@ -637,8 +726,7 @@ export default {
         if (this.fileList.length) { // avoid the exception once app mounted
           this.diveIntoDir(this.selectedIndex);
         }
-      } else if (event.key === 'e') {
-        console.log('fdasfdsafds');
+      } else if (event.altKey && event.key === 'e') {
         this.change();
       } else if (event.key === 'Tab') {
         event.preventDefault();  // 防止默认的 Tab 键行为（如焦点移动）
@@ -658,13 +746,26 @@ export default {
         }
       } else if (event.ctrlKey && event.key === 'f') {
         event.preventDefault(); // Prevent default action for Ctrl+F
-        this.showFileSearch = true
+        this.showFileSearch = !this.showFileSearch
         this.showFileSearchInCurDir = false
       } else if (event.altKey && event.key === 'f') {
         event.preventDefault();
-        this.showFileSearchInCurDir = true
-        this.showFileSearch = false
+        if (this.fileList[this.selectedIndex].isDir) {
+          this.showFileSearchInCurDir = !this.showFileSearchInCurDir
+          this.showFileSearch = false
+        }
+      } else if (event.ctrlKey && event.key === '0') {
+        this.picGrid.width = PIC_GRID.WIDTH + 'px'
+        this.picGrid.height = PIC_GRID.HEIGHT + 'px'
+        PIC_GRID.STEP = PIC_GRID.STEP_BK
+        this.filenameDivStyle = {
+          width: this.picGrid.width
+        }
+        this.showFileRank = true
       }
+    },
+    handleKeyUP(event) {
+      console.log(`松开的键: ${event.key}`);
     },
     resetFileList() {
       this.updateFileList().then(() => {
@@ -673,7 +774,46 @@ export default {
       }).then(() => {
         this.keywordForFilterFolder = ''
       })
-    }
+    },
+    handleHorizontalControlBarEvent(info) {
+      const { freq } = info
+      this.subFilePaths = this.horizontalControlBarData.fileRanks.filter(fileRank => fileRank.freq >= freq).map(({ filePath }) => filePath)
+    },
+    recentlyMostUsed() {
+      if (this.horizontalControlBarData.show) {
+        this.selectFile(this.selectedIndex)
+        return
+      }
+      const info = {
+        tableName: tableNameMap.fileRank,
+        operation: OPERATION_TYPE.SELECTION,
+        funcName: 'SELECT_BY_FREQ',
+        data: 1
+      }
+      window.electronAPI.executeSql(JSON.stringify(info)).then(fileRanks => {
+        this.subFilePathRankMap = new Map()
+        for (const fileRank of fileRanks) {
+          this.subFilePathRankMap[fileRank.filePath] = fileRank.freq
+        }
+        fileRanks.sort((f1, f2) => f2.freq - f1.freq)
+        this.subFilePaths = [...fileRanks.map(({ filePath }) => filePath)]
+        return fileRanks
+      }).then(fileRanks => {
+        this.horizontalControlBarData.show = true
+        const freqList = fileRanks.map(({ freq }) => freq)
+        let maxFreq = Math.max(...freqList)
+        let minFreq = Math.min(...freqList)
+        if (freqList.length === 0) {
+          maxFreq = 0
+          minFreq = 0
+        }
+
+        this.horizontalControlBarData['fileRanks'] = fileRanks
+        this.horizontalControlBarData['maxFreq'] = maxFreq
+        this.horizontalControlBarData['minFreq'] = minFreq
+        this.horizontalControlBarData['minVolume'] = maxFreq ? minFreq / maxFreq * 100 : 0
+      })
+    },
   },
   mounted() {
     window.electronAPI.fr(DEFAULT_CONFIG_DEST)
@@ -698,7 +838,8 @@ export default {
       })
 
 
-    window.addEventListener('keydown', this.handleKeyDown);
+    window.addEventListener('keydown', (event) => { this.handleKeyDown(event) })
+    window.addEventListener('keyup', (event) => { this.handleKeyUP(event) })
 
     window.electronAPI.onDataWithinVues((event, data) => {
       if (data.to === SPEC.vueNames.FILE_EXPLORER) {
@@ -722,7 +863,7 @@ export default {
 
   },
   unmounted() {
-    window.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('keydown', this.handleKeyDown)
     if (this.curPath !== '') {
       window.electronAPI.addRowInJsonFile(JSON.stringify({
         fieldName: 'lastUsedPath',
@@ -766,24 +907,32 @@ export default {
     }
   },
   components: {
-    FileSearch, ShrinkBox
+    FileSearch,
+    ShrinkBox,
+    HorizontalControlBar,
+    ShortcutSetting
   }
 
 };
 </script>
 
 <style scoped>
+.container{
+  background-color: rgba(7, 114, 39, 0.3);
+  height: 1125px;
+}
+
 .left-side {
   width: 250px;
-  height: 920px;
+  height: 1120px;
   border: 1px solid black;
   margin-left: 1%;
   float: left;
 }
 
 .right-side {
-  width: 1200px;
-  height: 920px;
+  width: calc(100% - 300px);
+  height: 1120px;
   border: 1px solid black;
   margin-left: 1%;
   float: left;
@@ -810,7 +959,7 @@ export default {
 }
 
 .path-displayer {
-  height: 800px;
+  height: 1000px;
   overflow: auto;
 }
 
@@ -819,9 +968,11 @@ export default {
   user-select: none;
   transition: background-color 0.1s ease;
   text-align: left;
-  /* 确保文本左对齐 */
-  padding-left: 30px;
-  /* 添加适当的内边距以保持文本距离左边框 */
+  padding-left: 10%;
+  display: flex;
+  /* Add this to use flexbox */
+  align-items: center;
+  /* Vertically align items */
 }
 
 .file-tab:hover {
@@ -830,26 +981,22 @@ export default {
 
 .file-tab.selected {
   background-color: #d0d0d0;
-  /* 选中时的背景色 */
 }
 
 .file-tab.selected:hover {
   background-color: #d0d0d0;
-  /* 鼠标悬停时选中状态保持选中背景色 */
 }
 
 .pic-grid {
-  width: 200px;
-  height: 200px;
+  /* width: 200px;
+  height: 200px; */
   flex: 0 0 auto;
   display: flex;
   justify-content: center;
   align-items: center;
   border: 1px solid red;
   margin: 0;
-  /* 移除默认的margin */
   padding: 0;
-  /* 移除默认的padding */
   background-color: #eee;
   position: relative;
 }
@@ -858,7 +1005,6 @@ export default {
   max-width: 100%;
   max-height: 100%;
   object-fit: cover;
-  /* 保持图片比例 */
 }
 
 /* 定义边框闪烁动画 */
@@ -923,6 +1069,7 @@ export default {
 
 .centered-overlay {
   position: fixed;
+  height: 5%;
   transform: translate(-50%, -50%);
   z-index: 1000;
   /* Ensure it's above other elements */
@@ -930,5 +1077,9 @@ export default {
   padding: 20px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border-radius: 10px;
+}
+
+.clicked-button {
+  background-color: rgb(211, 192, 192);
 }
 </style>

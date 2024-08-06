@@ -20,7 +20,11 @@ export const TITLES = ['大纲', '分镜', '文件路径', '台词文案', '备�
  */
 export const BOUNDS = {
   WIDTH: 1600,
-  HEIGHT: 1200
+  HEIGHT: 1200,
+  MAX_WIDTH: 2000,
+  MIN_WIDTH: 1200,
+  MAX_HEIGHT: 1200,
+  MIN_HEIGHT: 1200,
 }
 
 export const SPEC = {
@@ -50,7 +54,8 @@ export const tableNameMap = {
   scriptRows: 't_script_row',
   video: 't_video',
   scriptBk: 't_script_bk',
-  fileRank: 't_file_rank'
+  fileRank: 't_file_rank',
+  globalShortcut: 't_global_shortcut',
 }
 
 /**
@@ -78,3 +83,4 @@ export const EXTENSIONS = {
   // image suffixes
   IMAGE: [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".svg", ".ico"]
 }
+
