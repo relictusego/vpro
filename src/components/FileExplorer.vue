@@ -22,43 +22,57 @@
         @horizontalControlBarEvent="handleHorizontalControlBarEvent" :parentData="horizontalControlBarData">
       </HorizontalControlBar>
     </div>
-    <div class="right-side" @dragover.prevent="handleDragOver" @dragleave="handleDragLeave" @drop.prevent="handleDrop"
-      @wheel="handleWheel" :class="{ 'dragging': isDraggingFile }">
-      <input type="file" ref="fileInput" @change="handleFileChange" style="display: none;" />
-      <div v-for="(subFilePath, index) in subFilePaths" :key="index">
-        <div class="pic-grid" :style="picGrid" @contextmenu.prevent="showContextMenu($event, index, subFilePath)">
-          <div v-if="subFilePath.indexOf('.') > 0 && showFileRank" class="number-badge">{{
-            subFilePathRankMap[subFilePath] > 0 ?
-              subFilePathRankMap[subFilePath] : 0 }}</div>
-          <img v-if="subFilePath.indexOf('.') > 0" :src="'file:///' + subFilePath" alt="">
-          <div v-if="mimeType(subFilePath) === 'VIDEO' || mimeType(subFilePath) === 'AUDIO'"
-            style="width: 100%; height: 100%;" @click="togglePlay(index, mimeType(subFilePath))">
-            <video v-if="mimeType(subFilePath) === 'VIDEO'" :src="'file:///' + subFilePath"
-              style="max-width: 100%;  max-height: 100%;  object-fit: cover; " :ref="'videoMedia_' + index" autoplay
-              muted></video>
-            <audio v-if="mimeType(subFilePath) === 'AUDIO'" :src="'file:///' + subFilePath"
-              :ref="'audioMedia_' + index"></audio>
+    <div class="right-side">
+      <div class="file-viewer" @dragover.prevent="handleDragOver" @dragleave="handleDragLeave"
+        @drop.prevent="handleDrop" @wheel="handleWheel" :class="{ 'dragging': isDraggingFile }">
+        <input type="file" ref="fileInput" @change="handleFileChange" style="display: none;" />
+        <div v-for="(pagedFilePath, index) in pagedFilePaths" :key="pagedFilePath">
+          <div style="display: flex;  justify-content: center;  align-items: center;"
+            :style="{ width: mediaGrid.width + 5 + 'px', height: mediaGrid.height + 5 + 'px', 'box-sizing': 'border-box' }">
+            <span class="media-grid-span"></span>
+            <MediaGrid
+              :parentData="{ 'filePath': pagedFilePath, width: mediaGrid.width, height: mediaGrid.height, showButton: showFileRank }"
+              @contextmenu.prevent="showContextMenu($event, index, pagedFilePath)">
+              <template #number-badge>
+                <div v-if="pagedFilePath.includes('.') && showFileRank" class="number-badge">{{
+                  subFilePathRankMap[pagedFilePath] > 0 ?
+                    subFilePathRankMap[pagedFilePath] : 0 }}
+                </div>
+              </template>
+            </MediaGrid>
+          </div>
+          <div style="width: 200px;" :style="filenameDivStyle" ref="filenameDivs">{{
+            pagedFilePath.substring(pagedFilePath.lastIndexOf('\\') + 1) }}
           </div>
         </div>
-        <div style="width: 200px;" :style="filenameDivStyle" ref="filenameDivs">{{
-          subFilePath.substring(subFilePath.lastIndexOf('\\') + 1) }}
+      </div>
+      <div class="operation-area">
+        <Pagination :parentData="{
+          'filePaths': subFilePaths, 'showFileSearch': showFileSearch,
+          'keywordForSearching': paginationData.keywordForSearching,
+          'filePathDived': paginationData.filePathDived,
+        }" @paginationEvent="handlePaginationEvent" ref="pagination"></Pagination>
+
+        <div>
+          <button @click="getFileList">fileList</button>
         </div>
       </div>
     </div>
 
     <!-- Context Menu element -->
-    <ul v-if="contextMenu.visible" class="context-menu"
+    <ul v-if="contextMenu.visible" class="context-menu" ref="contextMenu"
       :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
-      <li @mouseenter="scriptOptions">移动到<span style="color: blue; font-family: '黑体', sans-serif;">{{
+      <li @mouseenter="scriptOptions">发送到<span style="color: blue; font-family: '黑体', sans-serif;">{{
         curVideoInfo.videoName }}</span></li>
       <li @click="copyFilePath" @mouseenter="hideScriptNumMenu">复制路径</li>
       <li @click="locateFile" @mouseenter="hideScriptNumMenu">定位文件</li>
       <li @click="deleteFile" @mouseenter="hideScriptNumMenu">删除文件</li>
       <li v-if="showFileSearch || horizontalControlBarData.show" @click="diveIntoDirByPath"
-        @mouseenter="hideScriptNumMenu">跳转</li>
+        @mouseenter="hideScriptNumMenu">
+        跳转</li>
     </ul>
 
-    <ul v-if="scriptNumMenu.visible" class="context-menu"
+    <ul v-if="scriptNumMenu.visible" class="context-menu" ref="scriptNumMenu"
       :style="{ top: scriptNumMenu.y + 'px', left: scriptNumMenu.x + 'px' }">
       <div>
         添加到:<input type="text" ref="addToInput" style="width: 50px;">行
@@ -68,18 +82,14 @@
       </div>
     </ul>
 
-    <div>
-      <button @click="getFileList">fileList</button>
-    </div>
-
     <ShrinkBox :parentData="shrinkBoxData" v-if="shrinkBoxData.show"></ShrinkBox>
 
     <FileSearch class="centered-overlay" v-if="showFileSearch" @fileSearchEvent="handleFileSearchEvent"
-      :parentData="{ path: curPath, type: 1 }" @mousedown="startDrag"
+      :parentData="{ path: curPath, type: 1, total: searchResult.global }" @mousedown="startDrag"
       :style="{ top: componentTop + 'px', left: componentLeft + 'px', position: 'absolute' }"></FileSearch>
 
     <FileSearch class="centered-overlay" v-if="showFileSearchInCurDir" @fileSearchEvent="handleFileSearchEvent"
-      :parentData="{ path: fileList[selectedIndex].path, type: 2 }" @mousedown="startDrag"
+      :parentData="{ path: fileList[selectedIndex].path, type: 2, total: searchResult.local }" @mousedown="startDrag"
       :style="{ top: componentTop + 'px', left: componentLeft + 'px', position: 'absolute' }"></FileSearch>
     <ShortcutSetting :parentData="shortcutSettingData"></ShortcutSetting>
 
@@ -88,13 +98,15 @@
 
 <script>
 import { SPEC, tableNameMap, OPERATION_TYPE, BOUNDS, DEFAULT_CONFIG_DEST } from '@/js/constants'
-import { newDataWithinVues, mimeType, similarity, delay } from '@/js/functions/vue-functions'
+import { newDataWithinVues, mimeType, similarity, delay, debounce } from '@/js/functions/vue-functions'
 import FileSearch from './kit/FileSearch.vue'
 import ShrinkBox from './kit/ShrinkBox.vue'
 import HorizontalControlBar from './kit/HorizontalControlBar.vue'
 import ShortcutSetting from './kit/ShortcutSetting.vue'
+import MediaGrid from './kit/MediaGrid.vue'
+import Pagination from './kit/Pagination.vue'
 
-const PIC_GRID = {
+const MEDIA_GRID = {
   WIDTH: 200,
   HEIGHT: 200,
   STEP: 10,
@@ -134,6 +146,7 @@ export default {
       forwardIndices: [],
       backwardIndices: [],
       subFilePaths: [],
+      pagedFilePaths: [],
       // for showing the context menu
       contextMenu: {
         visible: false,
@@ -148,7 +161,7 @@ export default {
         index: 0,
       },
       curVideoInfo: {},
-      selectedSubfilePath: '',
+      selectedPagedFilePath: '',
       subFilePathRankMap: new Map(),
       keywordForFilterFolder: '',
       showFileSearch: false,
@@ -158,8 +171,8 @@ export default {
       isDragging: false,
       dragStartX: 0,
       dragStartY: 0,
-      componentTop: BOUNDS.HEIGHT / 2, // Initial top position
       componentLeft: BOUNDS.WIDTH / 2, // Initial left position
+      componentTop: BOUNDS.HEIGHT / 2, // Initial top position
 
       isDraggingFile: false,
       dragCounter: 0,
@@ -170,9 +183,9 @@ export default {
       horizontalControlBarData: {
         show: false
       },
-      picGrid: {
-        width: `${PIC_GRID.WIDTH}px`,
-        height: `${PIC_GRID.HEIGHT}px`,
+      mediaGrid: {
+        width: MEDIA_GRID.WIDTH,
+        height: MEDIA_GRID.HEIGHT,
       },
       filenameDivStyle: {},
 
@@ -180,17 +193,36 @@ export default {
         href: this.$route.href,
         showDialog: false
       },
+      paginationData: {
+      },
+      searchResult: {
+        global: '',
+        local: ''
+      },
 
+      debounceObj: {
+        timeoutId: null,
+        flag: false // mark if it's necessary to debounce
+      },
+      lastSearchedFilenameDivs: [],
+      isPageInput: false,
+      /**
+       * key: audio file path
+       * value: corresponding canvas image path
+       */
+      canvasMap: {}
     }
   },
   methods: {
     deleteFile() {
-      const idx = this.contextMenu.index
-      const path = this.subFilePaths[this.contextMenu.index]
+      const path = this.pagedFilePaths[this.contextMenu.index]
+      const idxForSub = this.subFilePaths.indexOf(path)
+      const idxForPaged = this.contextMenu.index
 
       window.electronAPI.deleteFile(path).then(success => {
         if (success) {
-          this.subFilePaths.splice(idx, 1)
+          this.pagedFilePaths.splice(idxForPaged, 1)
+          this.subFilePaths.splice(idxForSub, 1)
         } else {
           alert(`${path}删除失败`)
         }
@@ -290,37 +322,40 @@ export default {
         event.preventDefault(); // Prevent default scrolling
         if (event.deltaY > 0) {
           // Scroll down
-          let width = Math.max(+this.picGrid.width.replace('px', '') - PIC_GRID.STEP, PIC_GRID.MIN)
-          let height = Math.max(+this.picGrid.height.replace('px', '') - PIC_GRID.STEP, PIC_GRID.MIN)
-          this.picGrid.width = width + 'px'
-          this.picGrid.height = height + 'px'
-          if (PIC_GRID.STEP > PIC_GRID.MIN_STEP) PIC_GRID.STEP -= PIC_GRID.STEP_ACC
+          let width = Math.max(+this.mediaGrid.width - MEDIA_GRID.STEP, MEDIA_GRID.MIN)
+          let height = Math.max(+this.mediaGrid.height - MEDIA_GRID.STEP, MEDIA_GRID.MIN)
+          this.mediaGrid.width = width
+          this.mediaGrid.height = height
+          if (MEDIA_GRID.STEP > MEDIA_GRID.MIN_STEP) MEDIA_GRID.STEP -= MEDIA_GRID.STEP_ACC
 
-
-          if (width < PIC_GRID.WIDTH || height < PIC_GRID.HEIGHT) {
+          if (width < MEDIA_GRID.WIDTH || height < MEDIA_GRID.HEIGHT) {
             this.filenameDivStyle = {
               'overflow': 'hidden',
               'white-space': 'nowrap',
               'text-overflow': 'ellipsis',
-              width: this.picGrid.width
+              width: this.mediaGrid.width + 'px'
             }
             this.showFileRank = false
+          } else {
+            this.filenameDivStyle = {
+              width: this.mediaGrid.width + 'px'
+            }
           }
         } else {
-          let width = +this.picGrid.width.replace('px', '') + PIC_GRID.STEP
-          let height = +this.picGrid.height.replace('px', '') + PIC_GRID.STEP
           // Scroll up
-          this.picGrid.width = width + 'px'
-          this.picGrid.height = height + 'px'
-          PIC_GRID.STEP += PIC_GRID.STEP_ACC
-          if (width >= PIC_GRID.WIDTH || height >= PIC_GRID.HEIGHT) {
+          let width = +this.mediaGrid.width + MEDIA_GRID.STEP
+          let height = +this.mediaGrid.height + MEDIA_GRID.STEP
+          this.mediaGrid.width = width
+          this.mediaGrid.height = height
+          MEDIA_GRID.STEP += MEDIA_GRID.STEP_ACC
+          if (width >= MEDIA_GRID.WIDTH || height >= MEDIA_GRID.HEIGHT) {
             this.filenameDivStyle = {
-              width: this.picGrid.width
+              width: this.mediaGrid.width + 'px'
             }
             this.showFileRank = true
           }
         }
-        console.log(`step: ${PIC_GRID.STEP}`);
+        // console.log(`step: ${PIC_GRID.STEP}`);
 
       }
     },
@@ -355,12 +390,26 @@ export default {
             this.showFileSearchInCurDir = data
             this.selectFile(this.selectedIndex)
           }
+          // remove the yellow background color for marking after the file is located
+          this.lastSearchedFilenameDivs.forEach(div => {
+            let txt = div.textContent
+            let innerHTML = `<span>${txt}</span>`
+            div.innerHTML = innerHTML
+          })
+
+          this.searchResult.global = ''
+          this.searchResult.local = ''
+          // for resetting the curPageIndex of Pagination to original
+          this.paginationData['keywordForSearching'] = ''
           break
         case 'updateSubFilePaths':
           const { regexMode, keyword } = info
           this.subFilePaths = data
+
           this.$nextTick(() => {
-            const divs = this.$refs.filenameDivs
+            const divs = []
+            this.$refs.filenameDivs.forEach(div => divs.push(div))
+            this.lastSearchedFilenameDivs = divs
             // mark out the parts that match the keyword
             if (regexMode) {
               divs.forEach(div => {
@@ -379,8 +428,42 @@ export default {
           if (type === 1) {
             // reset only when global search
             this.fileList = []
+            this.searchResult.global = data.length
+          } else if (type === 2) {
+            this.searchResult.local = data.length
           }
           this.updateSubFilePathRankMap()
+
+          // for resetting the curPageIndex of Pagination to 1
+          this.paginationData['keywordForSearching'] = keyword
+          break
+        case 'resetFileList':
+          this.searchResult.global = ''
+          this.searchResult.local = ''
+          if (type === 1) {
+            this.resetFileList()
+          } else if (type === 2) {
+            this.selectFile(this.selectedIndex)
+          }
+          // remove the yellow background color for marking after the file is located
+          this.lastSearchedFilenameDivs.forEach(div => {
+            let txt = div.textContent
+            let innerHTML = `<span>${txt}</span>`
+            div.innerHTML = innerHTML
+          })
+          break
+      }
+    },
+    handlePaginationEvent(info) {
+      const { purpose, data } = info
+      switch (purpose) {
+        case 'updatePagedFilePaths':
+          this.pagedFilePaths = data
+          break
+        case 'pageInputToggle':
+          this.isPageInput = data
+          console.log(data);
+
       }
     },
     updateSubFilePathRankMap() {
@@ -412,7 +495,7 @@ export default {
       return mimeType(filePath)
     },
     copyFilePath() {
-      const path = this.subFilePaths[this.contextMenu.index]
+      const path = this.pagedFilePaths[this.contextMenu.index]
       console.log(path);
       if (path) {
         navigator.clipboard.writeText(path)
@@ -425,7 +508,7 @@ export default {
       }
     },
     locateFile() {
-      const path = this.subFilePaths[this.contextMenu.index]
+      const path = this.pagedFilePaths[this.contextMenu.index]
       // console.log('path======>', path);
       window.electronAPI.locateFileInOs(path)
     },
@@ -444,7 +527,7 @@ export default {
         SPEC.vueNames.SCRIPT_CREATION, SPEC.type.FILE_SHARE,
         {
           index: idx,
-          filePath: this.selectedSubfilePath
+          filePath: this.selectedPagedFilePath
         }
       )
 
@@ -452,12 +535,21 @@ export default {
     },
     scriptOptions() {
       this.scriptNumMenu.visible = true
+      const container = document.documentElement
+      const containerWidth = container.clientWidth;
 
       this.$nextTick(() => {
-        const contextMenuElement = this.$el.querySelector('.context-menu');
+        const contextMenuElement = this.$refs.contextMenu;
+        const scriptMenuElement = this.$refs.scriptNumMenu;
         if (contextMenuElement) {
           const contextMenuWidth = contextMenuElement.offsetWidth;
-          this.scriptNumMenu.x = this.contextMenu.x + contextMenuWidth;
+          const scriptMenuWidth = scriptMenuElement.offsetWidth;
+          // if it exceed the boundary, show it on the contrary direction
+          if (this.contextMenu.x + contextMenuWidth + scriptMenuWidth > containerWidth) {
+            this.scriptNumMenu.x = this.contextMenu.x - scriptMenuWidth
+          } else {
+            this.scriptNumMenu.x = this.contextMenu.x + contextMenuWidth
+          }
           this.scriptNumMenu.y = this.contextMenu.y;
         }
 
@@ -471,15 +563,41 @@ export default {
 
       document.addEventListener('click', this.hideScriptNumMenu);
     },
-    showContextMenu(event, index, subFilePath) {
+    showContextMenu(event, index, pagedFilePath) {
+      const container = document.documentElement
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+
+      this.scriptNumMenu.visible = false
       this.contextMenu.visible = true;
       this.contextMenu.x = event.clientX;
       this.contextMenu.y = event.clientY;
       this.contextMenu.index = index;
       document.addEventListener('click', this.hideContextMenu);
 
-      console.log('index------', index);
-      this.selectedSubfilePath = subFilePath
+      // Get context menu dimensions after making it visible
+      this.$nextTick(() => {
+        const menu = this.$refs.contextMenu;
+
+        if (menu) {
+          const menuWidth = menu.offsetWidth;
+          const menuHeight = menu.offsetHeight;
+
+          // Check if the menu exceeds the right boundary
+          if (this.contextMenu.x + menuWidth > containerWidth) {
+            this.contextMenu.x -= menuWidth;
+          }
+          // Check if the menu exceeds the bottom boundary
+          if (this.contextMenu.y + menuHeight > containerHeight) {
+            this.contextMenu.y -= menuHeight;
+          }
+
+          document.addEventListener('click', this.hideContextMenu);
+        }
+      });
+
+      // console.log('index------', index);
+      this.selectedPagedFilePath = pagedFilePath
     },
     hideContextMenu() {
       this.contextMenu.visible = false;
@@ -494,12 +612,15 @@ export default {
       // console.log(JSON.stringify(this.fileList));
       // console.log(JSON.stringify(this.selectedIndex));
       // console.log(JSON.stringify(this.contextMenu));
-      console.log(JSON.stringify(this.curPath));
-      console.log(this.subFilePaths);
-      console.log(this.fileList[this.selectedIndex]);
-      console.log(this.$route.href);
+      // console.log(JSON.stringify(this.curPath));
+      // console.log(this.subFilePaths);
+      // console.log(this.fileList[this.selectedIndex]);
+      // console.log(this.$route.href);
 
-      this.shortcutSettingData.showDialog = !this.shortcutSettingData.showDialog
+      // this.shortcutSettingData.showDialog = !this.shortcutSettingData.showDialog
+      let spans = this.$el.querySelectorAll('.media-grid-span')
+      console.log(spans);
+
     },
     change() {
       window.electronAPI.fr(DEFAULT_CONFIG_DEST)
@@ -515,7 +636,7 @@ export default {
           return this.updateFileList().then(() => { return path })
         })
         .then(path => {
-          return window.electronAPI.addRowInJsonFile(JSON.stringify({
+          return window.electronAPI.addRowsInJsonFile(JSON.stringify({
             fieldName: 'lastPickedPath',
             fieldValue: path,
             dest: DEFAULT_CONFIG_DEST
@@ -529,7 +650,7 @@ export default {
     selectFile(index) {
       this.selectedIndex = index
       this.horizontalControlBarData.show = false
-      this.updateWhenFolderChanged(index)
+      return this.updateWhenFolderChanged(index)
     },
     backToParentPath() {
       let lastIdx = this.curPath.lastIndexOf('\\')
@@ -541,10 +662,7 @@ export default {
       this.curPath = this.curPath.substring(0, this.curPath.lastIndexOf('\\'))
       console.log(`this.curPath===>${this.curPath}`);
       this.updateFileList()
-        .then(() => { return window.electronAPI.subfilePathsInDir(this.curPath) })
-        .then(subFilePaths => {
-          this.subFilePaths = subFilePaths
-
+        .then(() => {
           this.forwardIndices.unshift(this.selectedIndex)
           let nextIndex = this.backwardIndices.shift()
           if (nextIndex) {
@@ -576,7 +694,6 @@ export default {
       }));
     },
     async diveIntoDir(index) {
-
       let path = this.fileList[index].path
       // do not dive if there is no subfolder in the folder
       const filePaths = await window.electronAPI.subfilePathsInDir(path)
@@ -599,11 +716,10 @@ export default {
         this.fileList.push(fileInfo)
       }
 
-
       await this.updateWhenFolderChanged(this.selectedIndex)
     },
     async diveIntoDirByPath() {
-      const path = this.subFilePaths[this.contextMenu.index]
+      const path = this.pagedFilePaths[this.contextMenu.index]
       const parentDir = path.substring(0, path.lastIndexOf('\\'))
       const grandDir = parentDir.substring(0, parentDir.lastIndexOf('\\'))
       const filePaths = await window.electronAPI.subfilePathsInDir(grandDir)
@@ -618,19 +734,26 @@ export default {
         }
       }
 
-      let idx = (await this.updateWhenFolderChanged(this.selectedIndex)).indexOf(path)
+      await this.updateWhenFolderChanged(this.selectedIndex)
       this.curPath = grandDir
       this.showFileSearch = false
       this.horizontalControlBarData.show = false
 
-      this.$nextTick(() => {
-        const selectedElement = this.$el.querySelectorAll('.pic-grid')[idx]
-        console.log(selectedElement);
+      const data = newDataWithinVues(SPEC.vueNames.FILE_EXPLORER,
+        SPEC.vueNames.PAGINATION, SPEC.type.PARENT_TO_CHILD,
+        path
+      )
+      window.electronAPI.updateDataWithinVues(data).then((pagedFilePaths) => {
+        // this.pagedFilePaths = [...pagedFilePaths]
+        let idx = this.pagedFilePaths.indexOf(path)
+        let span = this.$el.querySelectorAll('.media-grid-span')[idx]
+        if (span === undefined || span === null) return
+        const selectedElement = span.parentElement
         if (selectedElement) {
           selectedElement.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
-          selectedElement.classList.add('pic-grid-selected')
+          selectedElement.classList.add('media-grid-selected')
           delay(6000).then(() => {
-            selectedElement.classList.remove('pic-grid-selected')
+            selectedElement.classList.remove('media-grid-selected')
           })
 
           this.shrinkBoxData.show = true
@@ -643,33 +766,22 @@ export default {
           this.shrinkBoxData['bkColorRgba'] = `rgba(119, 117, 117, 0.516)`
           // time unit: second
           this.shrinkBoxData['aliveTime'] = 0.4
+          console.log(this.shrinkBoxData);
+
           delay(this.shrinkBoxData['aliveTime'] * 1000).then(() => {
             this.shrinkBoxData.show = false
+          })
+
+          // remove the yellow background color for marking after the file is located
+          this.lastSearchedFilenameDivs.forEach(div => {
+            let txt = div.textContent
+            let innerHTML = `<span>${txt}</span>`
+            div.innerHTML = innerHTML
           })
         }
       })
     },
-    // handleFileChange(event) {
-    //   const targetFiles = event.target.files;
-    //   if (targetFiles.length) {
-    //     let absoluteFilePath = targetFiles[0].path
-    //     let webkitRelativePath = targetFiles[0].webkitRelativePath
-    //     let arr1 = splitWithSlashOrBackSlash(absoluteFilePath)
-    //     let arr2 = splitWithSlashOrBackSlash(webkitRelativePath)
-    //     arr1.splice(arr1.indexOf(arr2[0]) + 1)
-    //     this.curPath = arr1.join('\\')
-    //     console.log(typeof (this.curPath));
-    //     this.updateFileList().then(() => {
-    //       return window.electronAPI.addRowInJsonFile(JSON.stringify({
-    //         fieldName: 'lastUsedPath',
-    //         fieldValue: this.curPath,
-    //         dest: DEFAULT_CONFIG_DEST
-    //       }))
-    //     }).then(() => {
-    //       this.selectFile(0)
-    //     })
-    //   }
-    // },
+
     async updateFileList() {
       const filePaths = await window.electronAPI.subfilePathsInDir(this.curPath)
       // reset fileList
@@ -710,19 +822,21 @@ export default {
       }
     },
     handleKeyDown(event) {
-      console.log(`按下的键: ${event.key}`);
+      // console.log(`按下的键: ${event.key}`);
       let inputting = this.$refs.kwInput === document.activeElement ||
-        this.showFileSearch || this.showFileSearchInCurDir
+        this.showFileSearch || this.showFileSearchInCurDir || this.isPageInput
 
-      if (event.key === 'w' && !inputting) {
+      if ((event.key === 'w' || event.key === 'W') && !inputting) {
         if (this.selectedIndex > 0) this.selectedIndex--;
         this.forwardIndices = []
-      } else if (event.key === 's' && !inputting) {
+        this.debounceObj.flag = true
+      } else if ((event.key === 's' || event.key === 'S') && !inputting) {
         if (this.selectedIndex < this.fileList.length - 1) this.selectedIndex++;
         this.forwardIndices = []
-      } else if (event.key === 'a' && !inputting) {
+        this.debounceObj.flag = true
+      } else if ((event.key === 'a' || event.key === 'A') && !inputting) {
         this.backToParentPath();
-      } else if (event.key === 'd' && !inputting) {
+      } else if ((event.key === 'd' || event.key === 'D') && !inputting) {
         if (this.fileList.length) { // avoid the exception once app mounted
           this.diveIntoDir(this.selectedIndex);
         }
@@ -747,6 +861,7 @@ export default {
       } else if (event.ctrlKey && event.key === 'f') {
         event.preventDefault(); // Prevent default action for Ctrl+F
         this.showFileSearch = !this.showFileSearch
+        this.searchResult.global = ''
         this.showFileSearchInCurDir = false
       } else if (event.altKey && event.key === 'f') {
         event.preventDefault();
@@ -754,26 +869,36 @@ export default {
           this.showFileSearchInCurDir = !this.showFileSearchInCurDir
           this.showFileSearch = false
         }
+        this.searchResult.local = ''
       } else if (event.ctrlKey && event.key === '0') {
-        this.picGrid.width = PIC_GRID.WIDTH + 'px'
-        this.picGrid.height = PIC_GRID.HEIGHT + 'px'
-        PIC_GRID.STEP = PIC_GRID.STEP_BK
+        this.mediaGrid.width = MEDIA_GRID.WIDTH
+        this.mediaGrid.height = MEDIA_GRID.HEIGHT
+        MEDIA_GRID.STEP = MEDIA_GRID.STEP_BK
         this.filenameDivStyle = {
-          width: this.picGrid.width
+          width: this.mediaGrid.width + 'px'
         }
         this.showFileRank = true
+      } else if (event.key === 'Escape' && this.$refs.kwInput === document.activeElement) {
+        this.resetFileList()
+        this.$refs.kwInput.blur()
       }
     },
     handleKeyUP(event) {
-      console.log(`松开的键: ${event.key}`);
+      // console.log(`松开的键: ${event.key}`);
     },
     resetFileList() {
-      this.updateFileList().then(() => {
-        this.selectFile(this.selectedIndex)
-        return Promise.resolve()
-      }).then(() => {
-        this.keywordForFilterFolder = ''
-      })
+      this.updateFileList()
+        .then(() => {
+          return this.selectFile(this.selectedIndex)
+        })
+        .then(() => {
+          const data = newDataWithinVues(SPEC.vueNames.FILE_EXPLORER,
+            SPEC.vueNames.PAGINATION, SPEC.type.REFRESH_PAGED_FILE_PATHS,
+            ''
+          )
+          return window.electronAPI.updateDataWithinVues(data)
+        })
+      this.keywordForFilterFolder = ''
     },
     handleHorizontalControlBarEvent(info) {
       const { freq } = info
@@ -820,7 +945,9 @@ export default {
       .then(txt => {
         try {
           const path = JSON.parse(txt)['lastUsedPath']
+          const lastSelectedIndex = JSON.parse(txt)['lastSelectedIndex']
           if (path !== undefined && path !== null) this.curPath = path
+          if (lastSelectedIndex !== undefined && lastSelectedIndex !== null) this.selectedIndex = lastSelectedIndex
           return Promise.resolve()
         } catch (error) {
           return window.electronAPI.fw(JSON.stringify({
@@ -861,15 +988,55 @@ export default {
       }
     })
 
+    /*
+    handle the situation when window is close directly, at this time,
+    unmounted() won't be called as usual, so it's necessary to handle via ipc
+    */
+    window.electronAPI.onUnmountComponents((event, data) => {
+      if (this.curPath !== '') {
+        const info = {
+          rows: [
+            {
+              fieldName: 'lastUsedPath',
+              fieldValue: this.curPath,
+              dest: DEFAULT_CONFIG_DEST
+            },
+            {
+              fieldName: 'lastSelectedIndex',
+              fieldValue: this.selectedIndex,
+              dest: DEFAULT_CONFIG_DEST
+            }
+          ],
+          dest: DEFAULT_CONFIG_DEST
+        }
+        window.electronAPI.addRowsInJsonFile(JSON.stringify(info)).then(added => {
+          if (added) {
+            window.electronAPI.unmountComponents()
+          }
+        })
+      }
+    })
   },
   unmounted() {
     window.removeEventListener('keydown', this.handleKeyDown)
+    window.removeEventListener('keyup', this.handleKeyUP)
     if (this.curPath !== '') {
-      window.electronAPI.addRowInJsonFile(JSON.stringify({
-        fieldName: 'lastUsedPath',
-        fieldValue: this.curPath,
+      const info = {
+        rows: [
+          {
+            fieldName: 'lastUsedPath',
+            fieldValue: this.curPath,
+            dest: DEFAULT_CONFIG_DEST
+          },
+          {
+            fieldName: 'lastSelectedIndex',
+            fieldValue: this.selectedIndex,
+            dest: DEFAULT_CONFIG_DEST
+          }
+        ],
         dest: DEFAULT_CONFIG_DEST
-      }))
+      }
+      window.electronAPI.addRowsInJsonFile(JSON.stringify(info))
     }
   },
   watch: {
@@ -877,9 +1044,16 @@ export default {
       handler(newValue, oldValue) {
         // to forbide the code below running when initializing the page
         if (oldValue === undefined || oldValue === null) return
-        this.selectFile(newValue)
+        if (this.debounceObj.flag) {
+          debounce(this.debounceObj, () => {
+            this.selectFile(newValue)
+            this.debounceObj.flag = false            
+          }, 50)
+        } else {
+          this.selectFile(newValue)
+        }
       },
-      deep: true,
+      // deep: true,
       immediate: true
     },
     keywordForFilterFolder: {
@@ -899,6 +1073,8 @@ export default {
           this.fileList.sort((f1, f2) => { return f2.similarity - f1.similarity })
           this.selectFile(0)
         } else {
+          console.log('rerere');
+
           this.resetFileList()
         }
       },
@@ -910,32 +1086,42 @@ export default {
     FileSearch,
     ShrinkBox,
     HorizontalControlBar,
-    ShortcutSetting
+    ShortcutSetting,
+    MediaGrid,
+    Pagination
+
   }
 
 };
 </script>
 
 <style scoped>
-.container{
+.container {
   background-color: rgba(7, 114, 39, 0.3);
   height: 1125px;
 }
 
 .left-side {
   width: 250px;
-  height: 1120px;
+  height: 100%;
   border: 1px solid black;
   margin-left: 1%;
   float: left;
+  box-sizing: border-box;
 }
 
 .right-side {
   width: calc(100% - 300px);
-  height: 1120px;
-  border: 1px solid black;
+  height: 100%;
   margin-left: 1%;
   float: left;
+}
+
+.file-viewer {
+  width: 100%;
+  height: 95%;
+  border: 1px solid black;
+  box-sizing: border-box;
   overflow: auto;
   display: flex;
   flex-wrap: wrap;
@@ -944,14 +1130,23 @@ export default {
   transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
 }
 
-.right-side.dragging {
+.file-viewer.dragging {
   box-shadow: 10 10 10px rgba(0, 0, 0, 0.2);
   border-color: #333;
   background-color: rgba(72, 76, 79, 0.3);
 }
 
+.operation-area {
+  height: 5%;
+  width: 100%;
+  border: 1px solid black;
+  box-sizing: border-box;
+  border-top: none;
+}
+
 .path-selector {
   border: 1px solid red;
+  box-sizing: border-box;
   height: 50px;
   display: flex;
   justify-content: center;
@@ -995,6 +1190,7 @@ export default {
   justify-content: center;
   align-items: center;
   border: 1px solid red;
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
   background-color: #eee;
@@ -1023,9 +1219,9 @@ export default {
 }
 
 /* 应用动画到选中的元素 */
-.pic-grid-selected {
+.media-grid-selected {
   animation: borderBlink 2s infinite;
-  border: 5px dashed rgb(59, 60, 54);
+  border: 8px dashed rgb(59, 60, 54);
   box-sizing: border-box;
 }
 
@@ -1050,6 +1246,7 @@ export default {
   position: absolute;
   background-color: white;
   border: 1px solid #ccc;
+  box-sizing: border-box;
   list-style-type: none;
   padding: 0;
   margin: 0;

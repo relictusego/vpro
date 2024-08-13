@@ -1,5 +1,5 @@
   <template>
-    <div style="background-color: rgba(2, 255, 255, 3); height: 1050px;">
+    <div class="container">
       <h1>视频：{{ videoName }}</h1>
       <div v-for="(title, index) in titles" :key="index">
         <div class="title">
@@ -8,7 +8,7 @@
       </div>
       <div class="scroll-container" ref="scrollContainer">
         <!-- <div class="clearfix"></div> -->
-        <div v-for="(script, index) in scripts" :key="index">
+        <div v-for="(script, index) in scripts" :key="script">
           <div class="general">
             <textarea v-model="script.outline" @blur="update(script, index)"></textarea>
           </div>
@@ -20,24 +20,9 @@
             @mousemove="moveTooltip($event)" @contextmenu.prevent="showContextMenu($event, index)">
             <span v-if="script.filePath === null || script.filePath === undefined || script.filePath === ''"
               style="user-select: none;">双击添加文件</span>
-            <img v-if="mimeType(script.filePath) === 'IMAGE'" :src="'file:///' + script.filePath" />
 
-            <div v-if="mimeType(script.filePath) === 'VIDEO' || mimeType(script.filePath) === 'AUDIO'"
-              style="width: 100%; height: 100%;" @click="togglePlay(index, mimeType(script.filePath))"
-              @mouseover="script.showProgressBar = true" @mouseleave="script.showProgressBar = false">
-              <div v-if="mimeType(script.filePath) === 'AUDIO'" style="user-select: none;">{{
-                script.filePath.substring(script.filePath.lastIndexOf('\\') + 1) }}</div>
-              <video v-if="mimeType(script.filePath) === 'VIDEO'" :src="'file:///' + script.filePath"
-                style="max-width: 100%;  max-height: 100%;  object-fit: cover; " :ref="'videoMedia_' + index"
-                @timeupdate="updateProgress(index)" autoplay muted></video>
-              <audio v-if="mimeType(script.filePath) === 'AUDIO'" :src="'file:///' + script.filePath"
-                :ref="'audioMedia_' + index" @timeupdate="updateProgress(index)"></audio>
-
-              <div v-if="script.showProgressBar" class="progress-bar" @click.stop="seek($event, index)">
-                <div class="progress" :style="{ width: script.progress + '%' }">{{ script.progress }}%</div>
-              </div>
-            </div>
-
+            <MediaGrid :parentData="{ 'filePath': script.filePath, width: 200, height: 200, showButton: true }" v-else>
+            </MediaGrid>
             <input type="file" style="display: none;" ref="fileInput" @change="handleFileChange($event, index)">
           </div>
           <div class="general">
@@ -75,7 +60,7 @@
         :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
         <li @click="copyFilePath">复制路径</li>
         <li @click="locateFile">定位文件</li>
-        <li @click="removeImg">移除文件</li>
+        <li @click="removeFile">移除文件</li>
         <li @click="insertRow(0)">往上添行</li>
         <li @click="insertRow(1)">往下添行</li>
       </ul>
@@ -86,19 +71,25 @@
         <button @click="save">保存</button>
         <button @click="appendRow">新增</button>
         <button @click="test">test</button>
-        <input type="text" style="width: 70px;" placeholder="关键字搜索" @blur="keywordSearch"
-          v-model="infoForKeywordSearching.keyword">
-        <button @click="nextTextArea(-1)">⇑</button>
-        <button @click="nextTextArea(1)">⇓</button>
+        <!-- <input type="text" style="width: 70px;" placeholder="关键字搜索"
+          @blur="keywordSearch(infoForKeywordSearching.keyword)" v-model="infoForKeywordSearching.keyword"> -->
+        <!-- <button @click="nextTextArea(-1)">⇑</button> -->
+        <!-- <button @click="nextTextArea(1)">⇓</button> -->
         <button @click="nextStep(-1)">撤销</button>
         <button @click="nextStep(1)">恢复</button>
       </div>
+
+      <TextSearch v-if="showTextSearch" :parentData="textSearchData" @mousedown="startDrag"
+        @textSearchEvent="handleTextSearchEvent" class="centered-overlay"
+        :style="{ top: componentTop + 'px', left: componentLeft + 'px', position: 'absolute' }"></TextSearch>
     </div>
   </template>
 
 <script>
-import { DEFAULT_ROW_NUM, TITLES, SPEC, tableNameMap, OPERATION_TYPE, TRANSACTIONS } from '@/js/constants'
-import { newDataWithinVues, mimeType } from '@/js/functions/vue-functions'
+import { DEFAULT_ROW_NUM, TITLES, SPEC, tableNameMap, OPERATION_TYPE, TRANSACTIONS, BOUNDS } from '@/js/constants'
+import { newDataWithinVues, mimeType, delay } from '@/js/functions/vue-functions'
+import TextSearch from './kit/TextSearch.vue'
+import MediaGrid from './kit/MediaGrid.vue'
 
 const SCRIPT_NUM_IN_ROW = 7
 
@@ -150,27 +141,73 @@ export default {
       infoForKeywordSearching: {
         keyword: '',
         matchedTextAreas: [],
-        matchedTextAreaIndex: 0
+        matchedTextAreaIndex: 0,
+        lastMatchedTextAreaEl: {}
       },
       videoName: '',
       showProgressBar: false,
-      progress: 0
+      progress: 0,
+
+      showTextSearch: false,
+      textSearchData: {},
+      isDragging: false,
+      dragStartX: 0,
+      dragStartY: 0,
+      componentTop: BOUNDS.HEIGHT / 2, // Initial top position
+      componentLeft: BOUNDS.WIDTH / 2, // Initial left position
     }
   },
   methods: {
+    startDrag(event) {
+      this.isDragging = true;
+      this.dragStartX = event.clientX - this.componentLeft;
+      this.dragStartY = event.clientY - this.componentTop;
+      document.addEventListener('mousemove', this.onDrag);
+      document.addEventListener('mouseup', this.stopDrag);
+    },
+    onDrag(event) {
+      if (this.isDragging) {
+        this.componentLeft = event.clientX - this.dragStartX;
+        this.componentTop = event.clientY - this.dragStartY;
+      }
+    },
+    stopDrag() {
+      this.isDragging = false;
+      document.removeEventListener('mousemove', this.onDrag);
+      document.removeEventListener('mouseup', this.stopDrag);
+    },
+    handleTextSearchEvent(info) {
+      const { purpose, data } = info
+      switch (purpose) {
+        case 'close':
+          this.showTextSearch = false
+          // remove the selected style when exit search mode
+          this.keywordSearch('')
+          this.infoForKeywordSearching.lastMatchedTextAreaEl.style.backgroundColor = '#e8f4fc'
+          break
+        case 'keywordSearch':
+          this.keywordSearch(data)
+          break
+        case 'nextTextArea':
+          this.nextTextArea(data)
+          break
+      }
+    },
     async test() {
       // console.log(this.getVisibleScriptRowIndices());
       // console.log(newDataWithinVues('you', 'me', 'msg', [1, 2]));
       // console.log(JSON.stringify(this.infoForKeywordSearching));
       // console.log(await window.electronAPI.getCurrentWindowBounds());
-      console.log(this.scripts);
-      const media = this.$refs['videoMedia_' + 4];
-      if (media) {
-        console.log(media[0]);
-        const newTime = 0.5 * media[0].duration;
-        console.log(newTime);
-        media[0].currentTime = newTime;
-      }
+      // console.log(this.scripts);
+      console.log(this.$route.href);
+      // const media = this.$refs['videoMedia_' + 4];
+      // if (media) {
+      //   console.log(media[0]);
+      //   const newTime = 0.5 * media[0].duration;
+      //   console.log(newTime);
+      //   media[0].currentTime = newTime;
+      // }
+
     },
     updateProgress(index) {
       const videoMedia = this.$refs[`videoMedia_${index}`] ? this.$refs[`videoMedia_${index}`][0] : null
@@ -217,8 +254,6 @@ export default {
         funcName: 'SELECT_BY_NO',
         data: +this.scriptsBkIdInDB + step
       }
-      console.log(`--------+++++++++++----------`);
-      console.log(info);
       window.electronAPI.executeSql(JSON.stringify(info)).then(nextScriptsInfo => {
         console.log(nextScriptsInfo);
         if (nextScriptsInfo !== null && nextScriptsInfo !== undefined) {
@@ -262,6 +297,9 @@ export default {
         })
         .then(scriptsBkIdInDB => {
           this.scriptsBkIdInDB = scriptsBkIdInDB
+        }).catch(error => {
+          console.error('INSERT_SCRIPT_BK_AFTER_DELETION execution failed', error);
+
         })
     },
     nextTextArea(step) {
@@ -269,30 +307,30 @@ export default {
     },
     jumpToTextArea(index) {
       let len = this.infoForKeywordSearching.matchedTextAreas.length
-      const legal = (0 <= index) && (index < len)
+      if (index >= len) index -= len
+      else if (index < 0) index += len
+      // console.log('Scrolling to:', this.infoForKeywordSearching.matchedTextAreas[index]);
+      const matched = this.infoForKeywordSearching.matchedTextAreas[index];
+      matched.style.backgroundColor = 'rgba(189, 252, 201, 1)'
+      matched.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
+      this.infoForKeywordSearching.lastMatchedTextAreaEl.style.backgroundColor = '#e8f4fc'
+      this.infoForKeywordSearching.lastMatchedTextAreaEl = matched
 
-      if (len > 0 && legal) {
-        console.log('Scrolling to:', this.infoForKeywordSearching.matchedTextAreas[index]);
-        const matched = this.infoForKeywordSearching.matchedTextAreas[index];
-        matched.focus(); // Set focus to textarea
-        const length = matched.value.length;
-        matched.setSelectionRange(length, length);
-
-        this.infoForKeywordSearching.matchedTextAreaIndex = index
-      }
+      this.infoForKeywordSearching.matchedTextAreaIndex = index
+      this.textSearchData['curNo'] = index + 1
     },
-    keywordSearch() {
-      const keyword = this.infoForKeywordSearching.keyword
-
+    keywordSearch(keyword) {
       // 在这里添加代码，将屏幕的焦点移动到this.infoForKeywordSearching.matchedTextAreas的第一个元素
       // Scroll to the first matched textarea if any
       this.$nextTick(() => {
         const container = this.$refs.scrollContainer;
         const items = container.querySelectorAll('textarea');
 
+        // reset every time to search
+        this.infoForKeywordSearching.matchedTextAreas = []
         // iterator
         items.forEach(textarea => {
-          console.log(textarea.value);
+          // console.log(textarea.value);
           if (keyword !== '' && textarea.value.indexOf(keyword) >= 0) {
             textarea.style.backgroundColor = '#e8f4fc'
             this.infoForKeywordSearching.matchedTextAreas.push(textarea)
@@ -301,12 +339,17 @@ export default {
             textarea.style.backgroundColor = '';
           }
         });
+        this.textSearchData['total'] = this.infoForKeywordSearching.matchedTextAreas.length
+        if (this.textSearchData['total'] > 0) {
+          this.textSearchData['curNo'] = 1
+        } else {
+          this.textSearchData['curNo'] = 0
+        }
         if (this.infoForKeywordSearching.matchedTextAreas.length > 0) {
-          console.log('Scrolling to:', this.infoForKeywordSearching.matchedTextAreas[0]);
           const firstMatch = this.infoForKeywordSearching.matchedTextAreas[0];
-          firstMatch.focus(); // Set focus to textarea
-          const length = firstMatch.value.length;
-          firstMatch.setSelectionRange(length, length);
+          firstMatch.style.backgroundColor = 'rgba(189, 252, 201, 1)'
+          firstMatch.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
+          this.infoForKeywordSearching.lastMatchedTextAreaEl = firstMatch
         }
       });
     },
@@ -317,7 +360,7 @@ export default {
           'bounds': { 'x': bounds.x, 'y': bounds.y }
         }
         window.electronAPI.openNewWindow(JSON.stringify(windowInfo));
-        setTimeout(() => {
+        delay(500).then(() => {
           const data = newDataWithinVues(SPEC.vueNames.SCRIPT_CREATION,
             SPEC.vueNames.FILE_EXPLORER, SPEC.type.FILE_SHARE,
             {
@@ -327,14 +370,14 @@ export default {
             }
           )
           window.electronAPI.updateDataWithinVues(data);
-        }, 500);
+        })
       })
     },
     getVisibleScriptRowIndices() {
       const container = this.$refs.scrollContainer;
       const containerRect = container.getBoundingClientRect();
 
-      const items = container.querySelectorAll('.general'); 
+      const items = container.querySelectorAll('.general');
 
       const visibleScriptRowIndices = [];
 
@@ -466,11 +509,11 @@ export default {
     },
     copyFilePath() {
       const path = this.scripts[this.contextMenu.index].filePath
-      console.log(path);
+      // console.log(path);
       if (path) {
         navigator.clipboard.writeText(path)
           .then(() => {
-            console.log('Path copied to clipboard:', path);
+            // console.log('Path copied to clipboard:', path);
           })
           .catch(err => {
             console.error('Unable to copy path to clipboard', err);
@@ -481,7 +524,7 @@ export default {
       const path = this.scripts[this.contextMenu.index].filePath
       window.electronAPI.locateFileInOs(path)
     },
-    removeImg() {
+    removeFile() {
       this.scripts[this.contextMenu.index].filePath = ''
       this.update(this.scripts[this.contextMenu.index], this.contextMenu.index)
     },
@@ -496,8 +539,8 @@ export default {
       )
       window.electronAPI.updateDataWithinVues(data);
     },
-    handleKeyDown() {
-      console.log(`按下的键: ${event.key}`);
+    handleKeyDown(event) {
+      // console.log(`按下的键: ${event.key}`);
       const capsLockStatus = event.getModifierState("CapsLock")
 
       // make it works no matter caps lock is on or off
@@ -507,6 +550,14 @@ export default {
       } else if (event.ctrlKey && event.key === 'Z') {
         if (capsLockStatus) this.nextStep(-1)
         else this.nextStep(1)
+      } else if (event.ctrlKey && (event.key === 'f' || event.key === 'f')) {
+        this.showTextSearch = !this.showTextSearch
+        if (!this.showTextSearch) {
+          this.keywordSearch('')
+          if (this.infoForKeywordSearching.lastMatchedTextAreaEl.style) {
+            this.infoForKeywordSearching.lastMatchedTextAreaEl.style.backgroundColor = '#e8f4fc'
+          }
+        }
       }
     }
   },
@@ -515,7 +566,7 @@ export default {
 
     window.electronAPI.onDataWithinVues((event, data) => {
       // update the data
-      console.log(`data===${JSON.stringify(data)}`);
+      // console.log(`data===${JSON.stringify(data)}`);
 
       if (data.to === SPEC.vueNames.SCRIPT_CREATION) {
         switch (data.from) {
@@ -558,8 +609,8 @@ export default {
         data: this.videoId
       }
       let video = await window.electronAPI.executeSql(JSON.stringify(videoInfo))
-      console.log(`video=${JSON.stringify(video)}`);
-      console.log(`video.name=${JSON.stringify(video.name)}`);
+      // console.log(`video=${JSON.stringify(video)}`);
+      // console.log(`video.name=${JSON.stringify(video.name)}`);
       this.videoName = video.name
 
       const info = {
@@ -576,7 +627,7 @@ export default {
         this.scripts.push(scriptRow)
       })
 
-      console.log(`len = ${this.scripts.length}`);
+      // console.log(`len = ${this.scripts.length}`);
       if (this.scripts.length < DEFAULT_ROW_NUM) {
         const more = DEFAULT_ROW_NUM - this.scripts.length;
         for (let i = 0; i < more; i++) {
@@ -632,18 +683,29 @@ export default {
               len: this.scripts.length
             }
           )
-          window.electronAPI.updateDataWithinVues(data);
+          window.electronAPI.updateDataWithinVues(data);         
         })
       },
       deep: true,
       immediate: true
-    }
+    },
+
   },
+  components: {
+    TextSearch,
+    MediaGrid,
+
+  }
 }
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+.container {
+  background-color: rgba(7, 114, 39, 0.3);
+  height: 1125px;
+}
+
 .scroll-container {
   position: relative;
   width: 1500px;
@@ -654,7 +716,7 @@ export default {
 
 .general {
   width: 200px;
-  height: 150px;
+  height: 200px;
   border: 1px solid black;
   float: left;
   background-color: #eee;
@@ -729,7 +791,7 @@ export default {
 
 .script-menu-bar-container {
   width: 50px;
-  height: 150px;
+  height: 200px;
   border: 1px solid rgb(149, 7, 7);
   float: left;
   display: flex;
@@ -751,5 +813,17 @@ export default {
 .progress {
   height: 100%;
   background-color: #f00;
+}
+
+.centered-overlay {
+  position: fixed;
+  height: 5%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  /* Ensure it's above other elements */
+  background-color: rgba(219, 230, 240, 0.927);
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
 }
 </style>

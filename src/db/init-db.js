@@ -32,7 +32,7 @@ export function runSql(sql, type) {
         }
       });
     }
-  });
+  })
 }
 
 /**
@@ -77,10 +77,12 @@ export async function initDb(app) {
       console.log('Connected to the SQLite database.');
       // Create a table
       try {
+        // TODO need to add await when publish
         runSql(DmlStatement.creation.CREATE_TABLE_t_script_row);
         runSql(DmlStatement.creation.CREATE_TABLE_t_video);
         runSql(DmlStatement.creation.CREATE_TABLE_t_file_rank);
         runSql(DmlStatement.creation.CREATE_TABLE_t_global_shortcut);
+        runSql(DmlStatement.creation.CREATE_TABLE_t_audio_wave_canvas);
       } catch (e) {
         // pass
         // console.log(e);

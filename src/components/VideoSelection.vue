@@ -35,7 +35,7 @@ export default {
     }
   },
   methods: {
-    test(){
+    test() {
       this.shortcutSettingData.showDialog = !this.shortcutSettingData.showDialog
     },
     async exportVideo(name, id) {
@@ -44,7 +44,7 @@ export default {
       }
       const { filePath } = await window.electronAPI.showSaveDialog(JSON.stringify(videoInfo))
       if (!filePath) return
-      console.log(filePath);
+      // console.log(filePath);
 
       const info = {
         tableName: tableNameMap.scriptRows,
@@ -88,7 +88,7 @@ export default {
         }]
       }
       let insertedNum = await window.electronAPI.executeSql(JSON.stringify(info))
-      console.log(`添加了${insertedNum}条视频`);
+      // console.log(`添加了${insertedNum}条视频`);
       const anotherInfo = {
         tableName: tableNameMap.video,
         operation: OPERATION_TYPE.SELECTION,
@@ -96,10 +96,10 @@ export default {
         data: null
       }
       let newestId = await window.electronAPI.executeSql(JSON.stringify(anotherInfo))
-      console.log('newestId===>', newestId);
+      // console.log('newestId===>', newestId);
       info.data[0]['id'] = newestId
       this.videos.push(info.data[0])
-      console.log(this.videos);
+      // console.log(this.videos);
     },
     async delVideo(id) {
       for (let i = 0; i < this.videos.length; i++) {
@@ -112,7 +112,7 @@ export default {
             data: this.videos[i]
           }
           window.electronAPI.executeSql(JSON.stringify(info)).then(deletedNum => {
-            console.log(`删除了${deletedNum}条视频`);
+            // console.log(`删除了${deletedNum}条视频`);
             this.videos.splice(i, 1)
           })
           break
@@ -131,7 +131,7 @@ export default {
       videos.forEach(video => {
         this.videos.push(video)
       });
-      console.log(videos);
+      // console.log(videos);
     })
   },
   components: {

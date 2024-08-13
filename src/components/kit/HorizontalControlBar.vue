@@ -52,7 +52,7 @@ export default {
     parentData: {}
   },
   mounted(){
-    console.log(this.parentData);
+    // console.log(this.parentData);
     
   }
 };

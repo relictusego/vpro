@@ -50,6 +50,13 @@ export const DmlStatement = {
       href TEXT                              -- 对应路由href
     );
   `,
+  CREATE_TABLE_t_audio_wave_canvas: `
+      CREATE TABLE ${tableNameMap.audioWaveCanvas} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 主键id，自增
+      filePath TEXT UNIQUE,                  -- 按键组合
+      canvasFilePath TEXT                    -- 对应路由href
+    );
+  `,
 
   },
   deletion: {

@@ -21,7 +21,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  addRowInJsonFile: (info) => ipcRenderer.send('add-row-in-json-file', info),
+  addRowsInJsonFile: (info) => ipcRenderer.invoke('add-rows-in-json-file', info),
   fr: async (filePath) => {
     try {
       return await ipcRenderer.invoke('f-r', filePath);
@@ -41,16 +41,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onDataWithinVues: (callback) => {
     ipcRenderer.on('on-data-within-vues', (event, data) => callback(event, data));
   },
-  updateDataWithinVues: (data) => ipcRenderer.send('update-data-within-vues', data),
+  updateDataWithinVues: (data) => ipcRenderer.invoke('update-data-within-vues', data),
   openNewWindow: (windowInfo) => ipcRenderer.send('open-new-window', windowInfo),
+  sendDataToMainProcess: (data) => ipcRenderer.send('data-from-renderer', data),
   showSaveDialog: (info) => ipcRenderer.invoke('dialog:showSaveDialog', info),
   openDirectory: (info) => ipcRenderer.invoke('open-directory', info),
   getCurrentWindowBounds: () => ipcRenderer.invoke('window:getBounds'),
-  executeSql: async (info) => { return await ipcRenderer.invoke('execute-sql', info)},
-  transact: async (transactionInfo) => { return await ipcRenderer.invoke('transact', transactionInfo)},
-  fileSearch: async (info) => { return await ipcRenderer.invoke('file-search', info)},
-  saveFiles: async (fileObjs) => { return await ipcRenderer.invoke('save-files', fileObjs)},
-  deleteFile: async (filePath) => { return await ipcRenderer.invoke('delete-file', filePath)},
-  bindGlobalShortcut: async (info) => { return await ipcRenderer.invoke('bind-global-shortcut', info)},
+  executeSql: async (info) => { return await ipcRenderer.invoke('execute-sql', info) },
+  transact: async (transactionInfo) => { return await ipcRenderer.invoke('transact', transactionInfo) },
+  fileSearch: async (info) => { return await ipcRenderer.invoke('file-search', info) },
+  // updateMediaPaths: async (data) => { return await ipcRenderer.invoke('media-paths-updated', data) },
+  updateCanvas: (data) => ipcRenderer.send('on-canvas-updated', data),
+  saveFiles: async (fileObjs) => { return await ipcRenderer.invoke('save-files', fileObjs) },
+  deleteFile: async (filePath) => { return await ipcRenderer.invoke('delete-file', filePath) },
+  bindGlobalShortcut: async (info) => { return await ipcRenderer.invoke('bind-global-shortcut', info) },
+  saveCanvas: (arrayBuffer) => ipcRenderer.send('save-canvas', arrayBuffer),
+  unmountComponents: () => ipcRenderer.send('unmount-components'),
+  onUnmountComponents: (callback) => ipcRenderer.on('on-unmount-components', (event, data) => { callback(data); }),
 })
 

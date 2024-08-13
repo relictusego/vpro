@@ -11,16 +11,20 @@
     <ShortcutSetting :parentData="shortcutSettingData"></ShortcutSetting>
     <button @click="toggleError">error</button>
     <input type="text" v-model="val" @blur="camelToSnake">
-    <!-- <ErrorPopUP v-if="isErrorVisible" :parentData="parentData" @errorPopUpEvent="handleErrorPopUpEvent"></ErrorPopUP>   -->
+    <button @click="test">test</button>
+    <canvas ref="canvas"></canvas>
   </div>
 </template>
 
 <script>
-import { tableNameMap, OPERATION_TYPE } from '@/js/constants';
-import ShortcutSetting from './kit/ShortcutSetting.vue';
-import ErrorPopUP from './kit/ErrorPopUP.vue';
+import ShortcutSetting from './kit/ShortcutSetting.vue'
 
 export default {
+  components: {
+    ShortcutSetting,
+    // DrawWave
+
+  },
   data() {
     return {
       isErrorVisible: false,
@@ -28,32 +32,43 @@ export default {
         message: 'Something went wrong!',
       },
       shortcutSettingData: {
-        href: this.$route.href
+        href: this.$route.href,
+        showDialog: false
       },
-      val: ''
+      val: '',
+
+      subFilePaths: [
+        'E:\\multi-media\\image\\情绪表情包\\夸奖\\nice.jpg',
+        'E:\\multi-media\\video\\bili.mp4',
+        'E:\\multi-media\\video\\bili.mp4',
+        'F:\\CloudMusic\\神前暁 - パティのテーマ.mp3',
+        'E:\\multi-media\\audio\\音效\\转场\\唰-挥剑唰一声.mp3'
+      ],
+      wh: {},
+      isDrawing: true,
     }
   },
   methods: {
-    camelToSnake(){
-      this.val = this.val.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();     
+    camelToSnake() {
+      this.val = this.val.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
     },
-    toggleError(){
+    toggleError() {
       this.isErrorVisible = !this.isErrorVisible
-      console.log(this.isErrorVisible);      
+      console.log(this.isErrorVisible);
     },
     test() {
-      const info = {
-        tableName: tableNameMap.scriptRows,
-        operation: OPERATION_TYPE.SELECTION,
-        funcName: 'SELECT_BY_VIDEO_ID',
-        data: 3
-      }
+      // const info = {
+      //   tableName: tableNameMap.scriptRows,
+      //   operation: OPERATION_TYPE.SELECTION,
+      //   funcName: 'SELECT_BY_VIDEO_ID',
+      //   data: 3
+      // }
 
-      window.electronAPI.executeSql(JSON.stringify(info)).then(res => {
-        console.log(res);
-      })
-
+      // window.electronAPI.executeSql(JSON.stringify(info)).then(res => {
+      //   console.log(res);
+      // })
     },
+
     openFileExplorer(event) {
       if (event.ctrlKey) {
         event.preventDefault();
@@ -78,23 +93,33 @@ export default {
         })
       }
     },
-    handleErrorPopUpEvent(info){
+    handleErrorPopUpEvent(info) {
       const { purpose } = info
-      switch(purpose){
+      switch (purpose) {
         case 'close':
           this.isErrorVisible = false
           break
       }
-    }
-
+    },
+    startDrawing() {
+      let canvas = this.$refs.canvas;
+      const ctx = canvas.getContext('2d');
+      // Clear canvas before drawing new content
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Drawing logic
+      ctx.beginPath();
+      ctx.moveTo(10, 10);
+      ctx.lineTo(100, 100);
+      ctx.stroke();
+    },
   },
-  components: {
-    ShortcutSetting, ErrorPopUP
-  },
-  mounted(){
+  mounted() {
     setTimeout(() => {
       this.isErrorVisible = true
     }, 100);
+    // Start drawing
+    this.startDrawing();
+
   }
 
 

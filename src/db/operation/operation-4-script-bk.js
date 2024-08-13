@@ -44,7 +44,6 @@ export const operationForScriptBk = {
       VALUES
         ${valuePart}
       `
-      console.log(`INSERT_VALUE_WITH_NO ===== sql ------> ${sql}`);
       return runSql(sql, OPERATION_TYPE.INSERTION)
     }
   },
@@ -85,7 +84,6 @@ export const operationForScriptBk = {
       SELECT * FROM ${tableNameMap.scriptBk}
       WHERE id = ${id}
       `
-      console.log('sql-=+====>', sql);
       return runSql(sql, OPERATION_TYPE.SELECTION).then(res => {return res[0]})
     },
     COUNT: () => {

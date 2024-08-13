@@ -43,7 +43,6 @@ export async function bindGlobalShortcut(kits, href, keysCombination) {
 
   // get the current keys combination of the current href, unregister it before update
   let row = await operationForGlobalShortcut.selection.SELECT_BY_HREF(href)
-  console.log(`row=====>${JSON.stringify(row)}`);
   
   if (row) {
     globalShortcut.unregister(row.keysCombination)

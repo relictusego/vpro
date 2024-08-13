@@ -13,7 +13,6 @@ import { tableNameMap, OPERATION_TYPE } from '@/js/constants'
 export default {
   data() {
     return {
-      // tips: 'Ctrl/Alt+任意键组成快捷键',
       shortcut: '无'
     };
   },
@@ -48,8 +47,7 @@ export default {
           
           this.$nextTick(() => {
             window.electronAPI.executeSql(JSON.stringify(info)).then(res => {
-              console.log('------==-=-o-=ofdasf');
-              console.log(res);
+              // console.log(res);
               if (res) {
                 const tipsEl = this.$refs.tips
                 let keysCombinations = res.keysCombination
@@ -68,7 +66,7 @@ export default {
   mounted() {
     window.addEventListener('keydown', this.handleKeydown);
   },
-  beforeDestroy() {
+  beforeMount() {
     window.removeEventListener('keydown', this.handleKeydown);
   },
   props: {

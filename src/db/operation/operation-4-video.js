@@ -1,4 +1,4 @@
-import { runSql,  generateInsertionStatement, generateUpdateStatement } from "../init-db"
+import { runSql, generateInsertionStatement, generateUpdateStatement } from "../init-db"
 import { OPERATION_TYPE, tableNameMap } from "@/js/constants"
 
 const fieldsExceptId = ['name', 'description', 'status', 'createdTime', 'modifiedTime']
@@ -29,7 +29,7 @@ export const operationForVideo = {
       const sql = `
       DELETE FROM ${tableNameMap.video}
       WHERE id IN
-      ${ '(' + idList.join(', ') + ')' }
+      ${'(' + idList.join(', ') + ')'}
       `
       return runSql(sql, OPERATION_TYPE.DELETION)
     },
@@ -37,16 +37,16 @@ export const operationForVideo = {
   },
   selection: {
     /**
-     * find script rows of which video id is specified
+     * find rows of which id is specified
      * @param {Number} id condition for selection
-     * @returns script rows found by condition
+     * @returns rows found by condition
     */
-   SELECT_BY_ID: (id) => {
-     const sql = `
+    SELECT_BY_ID: (id) => {
+      const sql = `
      SELECT * FROM ${tableNameMap.video}
      WHERE id = ${id}  
      `
-     return runSql(sql, OPERATION_TYPE.SELECTION).then(res => {return res[0]})
+      return runSql(sql, OPERATION_TYPE.SELECTION).then(res => { return res[0] })
     },
     /**
      * @param {String} status condition for selection
@@ -69,7 +69,7 @@ export const operationForVideo = {
       DESC
       LIMIT 0, 1
       `
-      return runSql(sql, OPERATION_TYPE.SELECTION).then(res => {return res[0]['id']})
+      return runSql(sql, OPERATION_TYPE.SELECTION).then(res => { return res[0]['id'] })
     }
   },
   update: {
@@ -82,7 +82,7 @@ export const operationForVideo = {
       return runSql(sql, OPERATION_TYPE.UPDATE)
     }
   }
-  
 
- }
+
+}
 

@@ -23,7 +23,6 @@ export default {
   },
   methods: {
     closePopup() {
-      // console.log('Closing popup');
       this.showPopup = false;
       this.$emit('errorPopUpEvent', { purpose: 'close' });
     },

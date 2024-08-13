@@ -31,9 +31,14 @@ export const SPEC = {
   vueNames: {
     SCRIPT_CREATION: 'ScriptCreation',
     FILE_EXPLORER: 'FileExplorer',
+    PAGINATION: 'Pagination',
+    DRAW_WAVE: 'DrawWave',
   },
   type: {
-   FILE_SHARE: 'FileShare'
+   FILE_SHARE: 'fileShare',
+   PARENT_TO_CHILD: 'parentToChild',
+   REFRESH_PAGED_FILE_PATHS: 'refreshPagedFilePaths',
+   RETRIEVE_CANVAS: 'retrieveCanvas',
   }
 }
 
@@ -56,6 +61,7 @@ export const tableNameMap = {
   scriptBk: 't_script_bk',
   fileRank: 't_file_rank',
   globalShortcut: 't_global_shortcut',
+  audioWaveCanvas: 't_audio_wave_canvas',
 }
 
 /**
@@ -84,3 +90,9 @@ export const EXTENSIONS = {
   IMAGE: [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".svg", ".ico"]
 }
 
+/**
+ * Array consists of hrefs that need to unmount components via ipc
+ */
+export const HREFS_NTUC = [
+  '#/fileExplorer',
+]

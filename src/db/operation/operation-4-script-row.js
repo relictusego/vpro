@@ -42,7 +42,6 @@ export const operationForScriptRow = {
       DELETE FROM ${tableNameMap.scriptRows}
       WHERE videoId = ${videoId} 
       `
-      console.log(sql);
       return runSql(sql, OPERATION_TYPE.DELETION)
     }
   },
@@ -58,7 +57,6 @@ export const operationForScriptRow = {
       WHERE videoId = ${videoId}  
       ORDER BY id
       `
-      console.log(sql);
       return runSql(sql, OPERATION_TYPE.SELECTION)
     }
   }

@@ -17,7 +17,7 @@ export default {
 
   },
   mounted() {
-    console.log(`parentData===>${JSON.stringify(this.parentData)}`);
+    // console.log(`parentData===>${JSON.stringify(this.parentData)}`);
     setTimeout(() => {
       this.shrinkBoxStyle = {
         width:  `${this.parentData.finalWidth}px`,
@@ -28,7 +28,8 @@ export default {
         background: `${this.parentData.bkColorRgba}`,        
         zIndex: 1000,
         pointerEvents: 'none',
-        transition: `all ${this.parentData.aliveTime}s`
+        transition: `all ${this.parentData.aliveTime}s`,
+        'box-sizing': 'border-box'
       };
     }, 1);
   },
@@ -48,5 +49,6 @@ export default {
   height: 100vh;
   z-index: 1000;  /* 确保在最前面 */
   pointer-events: none;  /* 禁止交互 */
+  box-sizing: border-box;
 }
 </style>

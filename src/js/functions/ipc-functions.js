@@ -1,8 +1,8 @@
 import fs from 'fs'
-import path from 'path'
+import path, { resolve } from 'path'
 import util from 'util'
-import { BOUNDS } from '../constants'
-import { urlWinMap } from '../global-var'
+import { BOUNDS, HREFS_NTUC } from '../constants'
+import { GlobalVar } from '../global-var'
 
 const readdir = util.promisify(fs.readdir)
 const stat = util.promisify(fs.stat)
@@ -58,14 +58,15 @@ export async function searchFilesByKeyword(dir, keyword, reg = false, extensions
  * @param {Object} bounds represents the location
  * @returns the window created
  */
-export function createNewWindow(kits, href, bounds) {
-  const { BrowserWindow, preloadPath } = kits
+export async function createNewWindow(kits, href, bounds) {
+  const { BrowserWindow, preloadPath, ipcMain } = kits
 
-  let newWindow = urlWinMap[href]
+  let newWindow = GlobalVar.UrlWinMap[href]
   if (newWindow) {
     newWindow.removeAllListeners('close');
+    await handleUnmount(href)
     newWindow.destroy();
-    delete urlWinMap[href]
+    delete GlobalVar.UrlWinMap[href]
     newWindow = null
   } else {
     newWindow = new BrowserWindow({
@@ -94,17 +95,71 @@ export function createNewWindow(kits, href, bounds) {
     newWindow.focus()
 
     // Override the default close behavior
-    newWindow.on('close', (event) => {
+    newWindow.on('close', async (event) => {
       event.preventDefault()
+      await handleUnmount(href)
       newWindow.removeAllListeners('close');
       newWindow.destroy();
-      delete urlWinMap[href]
+      delete GlobalVar.UrlWinMap[href]
       newWindow = null
     })
 
-    urlWinMap[href] = newWindow
-    return newWindow
+    GlobalVar.UrlWinMap[href] = newWindow
+  }
+
+  return newWindow
+
+
+  /**
+   * unmount components via ipc if the window needs to be unmounted
+   * @param {String} href the href of the current window
+   * @returns promise
+   */
+  async function handleUnmount(href) {
+    if (!HREFS_NTUC.includes(href)) {
+      return Promise.resolve()
+    }
+
+    newWindow.webContents.send('on-unmount-components')
+    // Wait for the unmounting to complete if needed
+    return new Promise((resolve) => {
+      ipcMain.once('unmount-components', (event, data) => {
+        resolve()
+      })
+    });
   }
 
 }
 
+/**
+ * Saves an array of files to the specified directories.
+ *
+ * @param {Array<Object>} fileObjs - An array of objects representing files to save.
+ * @param {string} fileObjs[].dirPath - The directory path where the file should be saved.
+ * @param {string} fileObjs[].filename - The name of the file to save.
+ * @param {string|ArrayBuffer} fileObjs[].fileData - The file data to be written. This can be a string or an ArrayBuffer.
+ *
+ * @returns {Object} - An object containing arrays of successfully saved file paths and failed file paths.
+ * @returns {string[]} return.savedFilePaths - An array of file paths that were successfully saved.
+ * @returns {string[]} return.failedFilePaths - An array of file paths that failed to save.
+ *
+ * @throws {Error} Will throw an error if any file operation fails.
+ */
+export function saveFiles(fileObjs) {
+  const savedFilePaths = []
+  const failedFilePaths = []
+
+  fileObjs.forEach(({ dirPath, filename, fileData }) => {
+    const filePath = path.join(dirPath, filename)
+    try {
+      fs.writeFileSync(filePath, Buffer.from(fileData))
+      savedFilePaths.push(filePath)
+    } catch (error) {
+      console.error(`Failed to save file ${filename}: ${error.message}`)
+      failedFilePaths.push(filePath)
+    }
+  })
+
+  // Return the paths of saved files and failed files separately
+  return { savedFilePaths, failedFilePaths }
+}

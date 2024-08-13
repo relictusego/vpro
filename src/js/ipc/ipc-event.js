@@ -4,20 +4,21 @@ import { operationForVideo } from '@/db/operation/operation-4-video'
 import { operationForScriptBk } from '@/db/operation/operation-4-script-bk'
 import { operationForFileRank } from '@/db/operation/operation-4-file-rank'
 import { operationForGlobalShortcut } from '@/db/operation/operation-4-global-shortcut'
+import { operationForAudioWaveCanvas } from '@/db/operation/operation-4-audio-wave-canvas'
 import { transactionHandler } from '@/db/operation/transaction-handler'
-import { searchFilesByKeyword, createNewWindow } from '../functions/ipc-functions'
+import { searchFilesByKeyword, createNewWindow, saveFiles } from '../functions/ipc-functions'
 import util from 'util'
 import { bindGlobalShortcut } from './ipc-global-shortcut'
+import { loopInPeriod } from '../functions/vue-functions'
 
 export function bindEventWithIpc(kits) {
   const { app, protocol, BrowserWindow, ipcMain, shell, path, fs, preloadPath, dialog, globalShortcut } = kits
 
-  // write one video info into local file
-  ipcMain.on('add-row-in-json-file', (event, videoInfo) => {
-    console.log(videoInfo);
-    const { fieldName, fieldValue, dest } = JSON.parse(videoInfo);
-    const filePath = path.join(app.getPath('userData'), dest)
+  // write rows into local file
+  ipcMain.handle('add-rows-in-json-file', (event, info) => {
+    const { rows, dest } = JSON.parse(info)
     let contentObj = {}
+    const filePath = path.join(app.getPath('userData'), dest)
     try {
       const str = fs.readFileSync(filePath)
       // console.log(`str=${str}`);
@@ -25,10 +26,18 @@ export function bindEventWithIpc(kits) {
     } catch (e) {
       console.log(e);
     }
-    contentObj[fieldName] = fieldValue;
+    rows.forEach(row => {
+      contentObj[row.fieldName] = row.fieldValue
+    })
+    // contentObj[fieldName] = fieldValue;
     // console.log(`filePath ===> ${filePath}`);
-    console.log(contentObj);
-    fs.writeFileSync(filePath, JSON.stringify(contentObj, null, 2));
+    // console.log(contentObj);
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(contentObj, null, 2));
+      return true
+    } catch (error) {
+      return false
+    }
   })
 
   // read local file
@@ -45,7 +54,6 @@ export function bindEventWithIpc(kits) {
 
   // write text into local file
   ipcMain.on('f-w', (event, textInfo) => {
-    console.log(textInfo);
     const { text, dest } = JSON.parse(textInfo);
     const regex = /^[A-Z]:\\/
     let filePath
@@ -72,7 +80,6 @@ export function bindEventWithIpc(kits) {
     const stat = util.promisify(fs.stat)
     const stats = await stat(rootPath)
     // return empty arr if is a file
-    console.log(`用时：${Date.now() - start} => ${stats.isDirectory()}`);
     return stats.isDirectory()
   })
 
@@ -91,12 +98,24 @@ export function bindEventWithIpc(kits) {
     return paths;
   })
 
-  ipcMain.on('update-data-within-vues', (event, data) => {
-    BrowserWindow.getAllWindows().forEach(win => {
-      win.webContents.send('on-data-within-vues', data);
-    });
-  })
+  ipcMain.handle('update-data-within-vues', async (event, data) => {
+    const promises = BrowserWindow.getAllWindows().map((win) => {
+      return new Promise((resolve) => {
+        // Send data to the renderer process
+        win.webContents.send('on-data-within-vues', data);
 
+        // Listen for the response from the renderer process
+        ipcMain.once('data-from-renderer', (event, responseData) => {
+          console.log(`Received from renderer: ${JSON.stringify(responseData)}`);
+          resolve(responseData);
+        });
+      });
+    });
+
+    // Wait for all windows to respond and return the first non-null response
+    const results = await Promise.all(promises);
+    return results.find(result => result !== null && result !== undefined);
+  });
 
   ipcMain.on('open-new-window', (event, windowInfo) => {
     try {
@@ -170,12 +189,13 @@ export function bindEventWithIpc(kits) {
   operationMap[tableNameMap.scriptBk] = operationForScriptBk
   operationMap[tableNameMap.fileRank] = operationForFileRank
   operationMap[tableNameMap.globalShortcut] = operationForGlobalShortcut
+  operationMap[tableNameMap.audioWaveCanvas] = operationForAudioWaveCanvas
 
   ipcMain.handle('execute-sql', (event, info) => {
-    console.log(info);
+    // console.log(info);
     const { tableName, operation, funcName, data } = JSON.parse(info)
     const func = operationMap[tableName][operation][funcName]
-    console.log(func);
+    // console.log(func);
     if (data === null || data === undefined) {
       return func()
     } else {
@@ -191,27 +211,71 @@ export function bindEventWithIpc(kits) {
 
   ipcMain.handle('file-search', (event, info) => {
     const { dir, keyword, reg, extensions } = JSON.parse(info)
-    console.log(`dir===${dir}`);
     return searchFilesByKeyword(dir, keyword, reg)
   })
 
-  ipcMain.handle('save-files', (event, fileObjs) => {
-    const savedFilePaths = []
-    const failedFilePaths = []
+  // ipcMain.handle('media-paths-updated', (event, mediaPaths) => {
+  //   return new Promise(resolve => {
+  //     let audioFilePaths = mediaPaths.filter(({ isAudio }) => isAudio)
+  //     let len = audioFilePaths.length
+  //     // console.log(`len=========>${len}`);
+  //     if (len === 0) {
+  //       resolve({})
+  //       return
+  //     }
 
-    fileObjs.forEach(({ dirPath, filename, fileData }) => {
-      const filePath = path.join(dirPath, filename)
-      try {
-        fs.writeFileSync(filePath, Buffer.from(fileData))
-        savedFilePaths.push(filePath)
-      } catch (error) {
-        console.error(`Failed to save file ${filename}: ${error.message}`)
-        failedFilePaths.push(filePath)
+  //     let filePaths = audioFilePaths.map(({ filePath }) => filePath)
+  //     console.log(`filePaths=${JSON.stringify(filePaths)}`);
+  //     operationForAudioWaveCanvas.selection.SELECT_BY_FILE_PATHS(filePaths).then(audioWaveCanvases => {
+  //       let canvasMap = {}
+  //       audioWaveCanvases.forEach(audioWaveCanvas => {
+  //         console.log(`audioWaveCanvas=${JSON.stringify(audioWaveCanvas)}`);
+  //         canvasMap[audioWaveCanvas['filePath']] = audioWaveCanvas['canvasFilePath']
+  //       })
+  //       console.log(`canvasMap=${JSON.stringify(canvasMap)}`);
+  //       resolve(canvasMap)
+  //     })
+  //   })
+  // })
+
+  ipcMain.on('on-canvas-updated', (event, mediaBlob) => {
+    let dirPath = 'E:/multi-media/image/canvas'
+    const { filePath, blob } = mediaBlob
+    
+      let filename = filePath.substring(filePath.lastIndexOf('\\'))
+      filename = filename.substring(0, filename.lastIndexOf('.')) + '.png'
+      let fileObj =  {
+        'dirPath': dirPath,
+        'filename': filename,
+        'fileData': blob,
+        'originalFilePath': filePath
+      }
+  
+    let audioWaveCanvas = [fileObj].map(({ dirPath, filename, originalFilePath }) => {
+      return {
+        'filePath': originalFilePath,
+        'canvasFilePath': path.join(dirPath, filename)
       }
     })
+    // insert this information into t_audio_wave_canvas
+    operationForAudioWaveCanvas.insertion.INSERT_VALUES(audioWaveCanvas).then(insertedRows => {
+      if (insertedRows > 0) {
+        const filePath = path.join(fileObj.dirPath, fileObj.filename)
+        fs.writeFile(filePath, Buffer.from(fileObj.fileData), (err) => {
+          if (err) {
+            console.error('Failed to save the file:', err);
+          } else {
+            console.log('File saved successfully:', filePath);
+          }
+        });
+      }
+    }).catch(e => {
+      // interrupt the loop if insertion failed
+    })
+  })
 
-    // Return the paths of saved files and failed files separately
-    return { savedFilePaths, failedFilePaths }
+  ipcMain.handle('save-files', (event, fileObjs) => {
+    return saveFiles(fileObjs)
   })
 
   ipcMain.handle('delete-file', (event, filePath) => {
@@ -225,8 +289,27 @@ export function bindEventWithIpc(kits) {
 
   ipcMain.handle('bind-global-shortcut', (event, info) => {
     const { shortcut, href } = info
-    console.log(`shortcut=${shortcut}`);
-    
+
     return bindGlobalShortcut(kits, href, shortcut)
   })
+
+  ipcMain.on('save-canvas', async (event, arrayBuffer) => {
+    const { filePath } = await dialog.showSaveDialog({
+      title: 'Save Canvas',
+      defaultPath: 'canvas.png',
+      filters: [
+        { name: 'Images', extensions: ['png'] },
+      ]
+    });
+
+    if (filePath) {
+      fs.writeFile(filePath, Buffer.from(arrayBuffer), (err) => {
+        if (err) {
+          console.error('Failed to save the file:', err);
+        } else {
+          console.log('File saved successfully:', filePath);
+        }
+      });
+    }
+  });
 }
