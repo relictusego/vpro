@@ -28,7 +28,7 @@ export default {
     },
     handleFileChange(event) {
       const file = event.target.files[0];
-      if (file) {
+      if (file !== undefined && file !== null) {
         this.fileName = file.name;
         this.file = file
       }
@@ -41,7 +41,7 @@ export default {
     },
     handleDrop(event) {
       const file = event.dataTransfer.files[0];
-      if (file) {
+      if (file !== undefined && file !== null) {
         this.$refs.fileInput.files = event.dataTransfer.files;
         this.handleFileChange({ target: { files: event.dataTransfer.files } });
       }

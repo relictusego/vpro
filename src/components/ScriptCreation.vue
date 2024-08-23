@@ -1,50 +1,50 @@
   <template>
     <div class="container">
-      <h1>视频：{{ videoName }}</h1>
-      <div v-for="(title, index) in titles" :key="index">
-        <div class="title">
+      <h1 class="video-title">视频：{{ videoName }}</h1>
+      <div class="titles-container">
+        <div v-for="(title, index) in titles" :key="index" class="title">
           {{ title }}
         </div>
       </div>
       <div class="scroll-container" ref="scrollContainer">
         <!-- <div class="clearfix"></div> -->
-        <div v-for="(script, index) in scripts" :key="script">
-          <div class="general">
-            <textarea v-model="script.outline" @blur="update(script, index)"></textarea>
+        <div v-for="(script, index) in scripts" :key="script" class="script-item">
+          <div class="general editable-container">
+            <div class="editable-content" contenteditable="true" v-text="script.outline" @blur="update(script, index)">
+            </div>
           </div>
-          <div class="general">
-            <textarea v-model="script.storyBoard" @blur="update(script, index)"></textarea>
+          <div class="general editable-container">
+            <div class="editable-content" contenteditable="true" v-text="script.storyBoard"
+              @blur="update(script, index)"></div>
           </div>
-          <div class="general" style="display: flex;  align-items: center;  justify-content: center;"
-            @dblclick="change(index)" @mouseover="showTooltip($event, script.filePath)" @mouseleave="hideTooltip"
-            @mousemove="moveTooltip($event)" @contextmenu.prevent="showContextMenu($event, index)">
-            <span v-if="script.filePath === null || script.filePath === undefined || script.filePath === ''"
-              style="user-select: none;">双击添加文件</span>
-
+          <div class="general media-container" @dblclick="change(index)"
+            @mouseover="showTooltip($event, script.filePath)" @mouseleave="hideTooltip" @mousemove="moveTooltip($event)"
+            @contextmenu.prevent="showContextMenu($event, index)">
+            <span v-if="!script.filePath" class="add-file-prompt">双击添加文件</span>
             <MediaGrid :parentData="{ 'filePath': script.filePath, width: 200, height: 200, showButton: true }" v-else>
             </MediaGrid>
             <input type="file" style="display: none;" ref="fileInput" @change="handleFileChange($event, index)">
           </div>
-          <div class="general">
-            <textarea v-model="script.subtitle" @blur="update(script, index)"></textarea>
+          <div class="general editable-container">
+            <div class="editable-content" contenteditable="true" v-text="script.subtitle" @blur="update(script, index)">
+            </div>
           </div>
-          <div class="general">
-            <textarea v-model="script.comment" @blur="update(script, index)"></textarea>
+          <div class="general editable-container">
+            <div class="editable-content" contenteditable="true" v-text="script.comment" @blur="update(script, index)">
+            </div>
           </div>
-          <div class="general">
-            <textarea v-model="script.createdTime" readonly style="user-select: none;"></textarea>
+          <div class="general editable-container">
+            <div class="readonly-content" v-text="script.createdTime"></div>
           </div>
-          <div class="general">
-            <textarea v-model="script.modifiedTime" readonly style="user-select: none;"></textarea>
+          <div class="general editable-container">
+            <div class="readonly-content" v-text="script.modifiedTime"></div>
           </div>
           <div class="script-menu-bar-container">
-            <div style="display: inline-block;">
-              <div style="user-select: none;"><span style="color: #ff5733; font-weight: bold;">{{ index + 1 }}</span>
-              </div>
-              <div style="user-select: none;">&nbsp;</div>
-              <div><a href="#" @click.prevent="delScript(index)">删除</a></div>
-              <div><a href="#" @click.prevent="upScript(index)">上移</a></div>
-              <div><a href="#" @click.prevent="downScript(index)">下移</a></div>
+            <div class="script-menu">
+              <span class="script-index">{{ index + 1 }}</span>
+              <a href="#" class="script-action" @click.prevent="delScript(index)">删除</a>
+              <a href="#" class="script-action" @click.prevent="upScript(index)">上移</a>
+              <a href="#" class="script-action" @click.prevent="downScript(index)">下移</a>
             </div>
           </div>
         </div>
@@ -86,7 +86,7 @@
   </template>
 
 <script>
-import { DEFAULT_ROW_NUM, TITLES, SPEC, tableNameMap, OPERATION_TYPE, TRANSACTIONS, BOUNDS } from '@/js/constants'
+import { DEFAULT_ROW_NUM, TITLES, SPEC, tableNameMap, OPERATION_TYPE, TRANSACTIONS, BOUNDS, ROUTER_HREF } from '@/js/constants'
 import { newDataWithinVues, mimeType, delay } from '@/js/functions/vue-functions'
 import TextSearch from './kit/TextSearch.vue'
 import MediaGrid from './kit/MediaGrid.vue'
@@ -142,7 +142,7 @@ export default {
         keyword: '',
         matchedTextAreas: [],
         matchedTextAreaIndex: 0,
-        lastMatchedTextAreaEl: {}
+        lastMatchedTextEl: {}
       },
       videoName: '',
       showProgressBar: false,
@@ -183,7 +183,7 @@ export default {
           this.showTextSearch = false
           // remove the selected style when exit search mode
           this.keywordSearch('')
-          this.infoForKeywordSearching.lastMatchedTextAreaEl.style.backgroundColor = '#e8f4fc'
+          this.infoForKeywordSearching.lastMatchedTextEl.style.backgroundColor = '#e8f4fc'
           break
         case 'keywordSearch':
           this.keywordSearch(data)
@@ -228,20 +228,6 @@ export default {
         } else {
           media.pause();
         }
-      }
-    },
-
-    seek(event, index) {
-      const videoMedia = this.$refs[`videoMedia_${index}`] ? this.$refs[`videoMedia_${index}`][0] : null
-      const audioMedia = this.$refs[`audioMedia_${index}`] ? this.$refs[`audioMedia_${index}`][0] : null
-      const media = videoMedia || audioMedia
-      if (media) {
-        const rect = event.target.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const width = rect.width;
-        const newTime = (x / width) * media.duration;
-        media.currentTime = newTime;
-        console.log(newTime);
       }
     },
     mimeType(filePath) {
@@ -313,8 +299,8 @@ export default {
       const matched = this.infoForKeywordSearching.matchedTextAreas[index];
       matched.style.backgroundColor = 'rgba(189, 252, 201, 1)'
       matched.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
-      this.infoForKeywordSearching.lastMatchedTextAreaEl.style.backgroundColor = '#e8f4fc'
-      this.infoForKeywordSearching.lastMatchedTextAreaEl = matched
+      this.infoForKeywordSearching.lastMatchedTextEl.style.backgroundColor = '#e8f4fc'
+      this.infoForKeywordSearching.lastMatchedTextEl = matched
 
       this.infoForKeywordSearching.matchedTextAreaIndex = index
       this.textSearchData['curNo'] = index + 1
@@ -324,19 +310,18 @@ export default {
       // Scroll to the first matched textarea if any
       this.$nextTick(() => {
         const container = this.$refs.scrollContainer;
-        const items = container.querySelectorAll('textarea');
+        const items = container.querySelectorAll('.editable-content');
 
         // reset every time to search
         this.infoForKeywordSearching.matchedTextAreas = []
         // iterator
-        items.forEach(textarea => {
-          // console.log(textarea.value);
-          if (keyword !== '' && textarea.value.indexOf(keyword) >= 0) {
-            textarea.style.backgroundColor = '#e8f4fc'
-            this.infoForKeywordSearching.matchedTextAreas.push(textarea)
+        items.forEach(textEl => {
+          if (keyword !== '' && textEl.innerText.indexOf(keyword) >= 0) {
+            textEl.style.backgroundColor = '#e8f4fc'
+            this.infoForKeywordSearching.matchedTextAreas.push(textEl)
           } else {
             // reset
-            textarea.style.backgroundColor = '';
+            textEl.style.backgroundColor = '';
           }
         });
         this.textSearchData['total'] = this.infoForKeywordSearching.matchedTextAreas.length
@@ -349,14 +334,14 @@ export default {
           const firstMatch = this.infoForKeywordSearching.matchedTextAreas[0];
           firstMatch.style.backgroundColor = 'rgba(189, 252, 201, 1)'
           firstMatch.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
-          this.infoForKeywordSearching.lastMatchedTextAreaEl = firstMatch
+          this.infoForKeywordSearching.lastMatchedTextEl = firstMatch
         }
       });
     },
     openFileExplorer() {
       window.electronAPI.getCurrentWindowBounds().then(bounds => {
         const windowInfo = {
-          'href': '#/fileExplorer',
+          'href': ROUTER_HREF.FileExplorer,
           'bounds': { 'x': bounds.x, 'y': bounds.y }
         }
         window.electronAPI.openNewWindow(JSON.stringify(windowInfo));
@@ -554,8 +539,8 @@ export default {
         this.showTextSearch = !this.showTextSearch
         if (!this.showTextSearch) {
           this.keywordSearch('')
-          if (this.infoForKeywordSearching.lastMatchedTextAreaEl.style) {
-            this.infoForKeywordSearching.lastMatchedTextAreaEl.style.backgroundColor = '#e8f4fc'
+          if (this.infoForKeywordSearching.lastMatchedTextEl.style) {
+            this.infoForKeywordSearching.lastMatchedTextEl.style.backgroundColor = '#e8f4fc'
           }
         }
       }
@@ -683,7 +668,7 @@ export default {
               len: this.scripts.length
             }
           )
-          window.electronAPI.updateDataWithinVues(data);         
+          window.electronAPI.updateDataWithinVues(data);
         })
       },
       deep: true,
@@ -706,42 +691,149 @@ export default {
   height: 1125px;
 }
 
+.video-title {
+  font-size: 24px;
+  color: #333333;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 20px;
+  background-color: #fafafa;
+  padding: 15px;
+  user-select: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.titles-container {
+  width: calc(100% - 80px);
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+}
+
+.title {
+  width: 10% !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e0e0e0;
+  background-color: #fafafa;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  font-size: 16px;
+  color: #555555;
+  user-select: none;
+}
+
 .scroll-container {
   position: relative;
-  width: 1500px;
-  height: 900px;
-  border: 1px solid black;
-  overflow: auto;
+  width: 100%;
+  height: 85%;
+  border: 1px solid #dcdcdc;
+  border-radius: 8px;
+  overflow-y: auto;
+  /* padding: 20px; */
+  background-color: #ffffff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.script-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 3px;
+  /* padding: 15px; */
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background-color: #fafafa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .general {
-  width: 200px;
+  flex: 1;
+  min-width: 10%;
   height: 200px;
-  border: 1px solid black;
-  float: left;
-  background-color: #eee;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #f9f9f9;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.general img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: cover;
+.editable-container {
+  /* padding: 10px; */
+  border: 1px solid #e1e1e1;
+  background-color: #ffffff;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-.general video {
-  max-width: 100%;
-  /* Or set a specific width */
-  max-height: 100%;
-  object-fit: cover;
-  /* Or contain, scale-down */
-}
-
-.general textarea {
+.editable-content {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  box-sizing: border-box;
-  background-color: #eee;
+  overflow-y: auto;
+  outline: none;
+  font-size: 14px;
+  color: #333333;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.editable-content:focus {
+  border: 1px solid #007bff;
+}
+
+.media-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #ccc;
+  background-color: #f0f4f8;
+  position: relative;
+}
+
+.add-file-prompt {
+  color: #888888;
+  font-size: 14px;
+  text-align: center;
+  user-select: none;
+}
+
+.readonly-content {
+  /* padding: 10px; */
+  font-size: 14px;
+  color: #555555;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  user-select: none;
+}
+
+.script-menu-bar-container {
+  width: 50px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.script-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: center;
+}
+
+.script-index {
+  color: #ff5733;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.script-action {
+  color: #007bff;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.script-action:hover {
+  text-decoration: underline;
 }
 
 .title {
@@ -771,22 +863,35 @@ export default {
 
 .context-menu {
   position: absolute;
-  background-color: white;
-  border: 1px solid #ccc;
+  background-color: #f0f0f0;
+  border: 1px solid #bbb;
+  box-sizing: border-box;
   list-style-type: none;
   padding: 0;
   margin: 0;
   z-index: 1000;
   text-align: left;
+  min-width: 150px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .context-menu li {
-  padding: 8px 12px;
+  padding: 10px 15px;
   cursor: pointer;
+  transition: background-color 0.3s;
+  color: #333;
 }
 
 .context-menu li:hover {
-  background-color: #eee;
+  background-color: #e0e0e0;
+}
+
+.context-menu-highlight {
+  color: #3182ce;
+  /* Highlight color */
+  font-family: '黑体', sans-serif;
 }
 
 .script-menu-bar-container {
@@ -825,5 +930,79 @@ export default {
   padding: 20px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border-radius: 10px;
+}
+
+button {
+  background-color: #007bff;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 3px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Button Hover and Active States */
+button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+button:active {
+  background-color: #003f7f;
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Disable Button Styling */
+button:disabled {
+  background-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.container button {
+  margin: 5px 10px;
+}
+
+/* Additional Button Styling for Specific Buttons */
+button.save-button {
+  background-color: #28a745;
+}
+
+button.save-button:hover {
+  background-color: #218838;
+}
+
+button.save-button:active {
+  background-color: #1e7e34;
+}
+
+button.delete-button {
+  background-color: #dc3545;
+}
+
+button.delete-button:hover {
+  background-color: #c82333;
+}
+
+button.delete-button:active {
+  background-color: #bd2130;
+}
+
+button.test-button {
+  background-color: #17a2b8;
+}
+
+button.test-button:hover {
+  background-color: #138496;
+}
+
+button.test-button:active {
+  background-color: #117a8b;
 }
 </style>

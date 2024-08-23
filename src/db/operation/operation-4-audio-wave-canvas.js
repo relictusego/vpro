@@ -32,9 +32,25 @@ export const operationForAudioWaveCanvas = {
       `
       return runSql(sql, OPERATION_TYPE.DELETION)
     },
+    DELETE_BY_FILE_PATH: (filePath) => {
+      const sql = `
+      DELETE FROM ${tableNameMap.audioWaveCanvas}
+      WHERE filePath = ' ${filePath}'
+      `
+      return runSql(sql, OPERATION_TYPE.DELETION)
+    },
 
   },
   selection: {
+    /**
+     * @returns all rows
+    */
+    SELECT_ALL: () => {
+      const sql = `
+      SELECT * FROM ${tableNameMap.audioWaveCanvas}
+      `
+      return runSql(sql, OPERATION_TYPE.SELECTION)
+    },
     /**
      * find row of which id is specified
      * @param {Number} id condition for selection

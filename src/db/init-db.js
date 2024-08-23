@@ -46,10 +46,10 @@ export async function runTransaction(transact) {
       try {
         // Start the transaction
         await runSql('BEGIN', null);
-        
+
         console.log('------------transaction executed--------------');
         await transact()
-        
+
         // Commit the transaction
         await runSql('COMMIT', null);
         resolve();
@@ -97,7 +97,7 @@ export async function initDb(app) {
  * @param {Array} fieldsToBeInserted list of fields of a row need to be inserted
  * @returns {String} the remained part of the sql being executed after keyword 'VALUES'
  */
-export function valueTxtPart(dataList, fieldsToBeInserted){
+export function valueTxtPart(dataList, fieldsToBeInserted) {
   let values = []
   dataList.forEach(item => {
     let value = '('
@@ -113,7 +113,7 @@ export function valueTxtPart(dataList, fieldsToBeInserted){
         value += 'null, '
       }
     })
-    value = value.substring(0, value.lastIndexOf(', ')) + ')'      
+    value = value.substring(0, value.lastIndexOf(', ')) + ')'
     values.push(value)
   });
   return values.join(', \n    ')
@@ -122,7 +122,7 @@ export function valueTxtPart(dataList, fieldsToBeInserted){
 /**
 * get the completed sql for insertion that's able to insert with batch
 * @param {Array} fieldsToBeInserted list of fields of a row need to be inserted
-* @param {Array} dataList list of dataa to be used in iteration
+* @param {Array} dataList list of data to be used in iteration
 * @param {String} tableName the name of the table used
 * @returns {String} the completed sql
 */
@@ -137,12 +137,28 @@ export function generateInsertionStatement(fieldsToBeInserted, dataList, tableNa
   `
 }
 
-
-export function generateUpdateStatement(fieldsToBeUpdate, data, tableName) {
+/**
+ * Generates an SQL UPDATE statement based on provided fields and data.
+ * 
+ * This function creates an SQL UPDATE statement for a specified table, updating only 
+ * the fields that are provided in the `fieldsToBeUpdate` array. It supports both string 
+ * and number data types, and sets missing fields to `null`.
+ * 
+ * @param {string[]} fieldsToBeUpdate - An array of field names to be updated in the SQL statement.
+ * @param {Object} data - An object containing the data to be used for the update, where keys correspond to field names.
+ * @param {string} tableName - The name of the table in which the update will be performed.
+ * @param {string} [conditionFieldName='id'] - The field name to be used in the WHERE clause for the condition, defaulting to 'id'.
+ * @returns {string} - The generated SQL UPDATE statement as a string.
+ */
+export function generateUpdateStatement(fieldsToBeUpdate, data, tableName, conditionFieldName = 'id') {
   let part = ''
+  let conditionFieldValue = data[conditionFieldName]
+  if (typeof conditionFieldValue === 'string') {
+    conditionFieldValue = `'${conditionFieldValue}'`
+  }
   fieldsToBeUpdate.forEach(field => {
     const fieldValue = data[field]
-    if (fieldValue) {
+    if (fieldValue !== undefined && fieldValue !== null) {
       if (typeof fieldValue === 'number') {
         part += `${field} = ${fieldValue}, \n`
       } else {
@@ -156,6 +172,6 @@ export function generateUpdateStatement(fieldsToBeUpdate, data, tableName) {
   return `
   UPDATE ${tableName} SET
   ${part}
-  WHERE id = ${data['id']}
+  WHERE ${conditionFieldName} = ${conditionFieldValue}
   `
 }

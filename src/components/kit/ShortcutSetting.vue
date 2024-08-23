@@ -1,7 +1,7 @@
 <template>
   <div>
     <div v-if="parentData.showDialog" class="dialog">
-      <p ref="tips">Ctrl/Alt+任意键组成快捷键</p>
+      <p ref="tips" class="tips-text">Ctrl/Alt+任意键组成快捷键</p>
       <div class="shortcut-display">{{ shortcut }}</div>
     </div>
   </div>
@@ -81,18 +81,37 @@ export default {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgb(244, 224, 243);
-  border: 3px solid #aaa; /* Slightly darker border */
-  padding: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); /* Thicker and darker shadow */
-  z-index: 1000; /* Higher z-index to ensure it's on top */
+  background: #fff; /* White background for better readability */
+  border: 2px solid #ccc;
+  padding: 25px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Slightly darker shadow for depth */
+  z-index: 1000;
   user-select: none;
-  border-radius: 8px; /* Rounded corners */
+  border-radius: 10px;
+  transition: all 0.3s ease-in-out; /* Smooth transition for entry */
+  width: 300px; /* Set a fixed width for consistency */
+  text-align: center; /* Center-align text for better presentation */
+}
+
+.dialog .tips-text {
+  font-size: 14px;
+  color: #555;
 }
 
 .shortcut-display {
-  margin-top: 10px;
-  font-size: 1.5em;
-  color: #333;
+  margin-top: 15px;
+  font-size: 1.8em;
+  font-weight: bold;
+  color: #007bff; /* Primary color for emphasis */
+}
+
+.dialog-enter-active, .dialog-leave-active {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.dialog-enter, .dialog-leave-to /* .dialog-leave-active in <2.1.8 */ {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.9);
 }
 </style>

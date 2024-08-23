@@ -54,7 +54,9 @@ export const DmlStatement = {
       CREATE TABLE ${tableNameMap.audioWaveCanvas} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 主键id，自增
       filePath TEXT UNIQUE,                  -- 按键组合
-      canvasFilePath TEXT                    -- 对应路由href
+      canvasFilePath TEXT,                   -- 对应路由href
+      xAxis INTEGER,                         -- 序号
+      yAxis INTEGER                          -- 序号
     );
   `,
 

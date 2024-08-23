@@ -1,17 +1,22 @@
 <template>
-  <div>
-    <select v-model="selectedPagination">
-      <option v-for="(pageOption, index) in pageOptions" :key="index" :value="pageOption">
-        {{ pageOption }}
-      </option>
-    </select>
-    <button @click="nextPage(-1)">上一页</button>
-    <button @click="nextPage(1)">下一页</button>
-    <span>当前:</span>
-    <input type="text" v-model="curPageIndex" style="width: 2%;" min="0" @blur="checkCurPageIndex"
-      @focus="enterPageInput">
-    <span>共:{{ totalPages }}页</span>
-    <button @click="test">test</button>
+  <div class="pagination-container">
+    <div class="pagination-controls">
+      <select v-model="selectedPagination" class="pagination-select">
+        <option v-for="(pageOption, index) in pageOptions" :key="index" :value="pageOption">
+          {{ pageOption }} 条/页
+        </option>
+      </select>
+      <button @click="nextPage(-1)" class="pagination-button" :disabled="curPageIndex <= 1">上一页</button>
+      <button @click="nextPage(1)" class="pagination-button" :disabled="curPageIndex >= totalPages">下一页</button>
+      <span>当前:</span>
+      <input type="text" v-model="curPageIndex" class="pagination-input" min="1" :max="totalPages"
+        @blur="checkCurPageIndex" @focus="enterPageInput">
+      <span>共 {{ totalPages }} 页</span>
+    </div>
+    <!-- <button @click="test" class="test-button">Test</button> -->
+    <slot name="extra-button">
+
+    </slot>
   </div>
 </template>
 
@@ -37,6 +42,7 @@ export default {
     },
     checkCurPageIndex() {
       if (this.curPageIndex === '') this.curPageIndex = 1
+      else if (+this.curPageIndex > this.totalPages) this.curPageIndex = this.totalPages
       const info = {
         purpose: 'pageInputToggle',
         data: false
@@ -203,16 +209,80 @@ export default {
 </script>
 
 <style scoped>
-select {
-  width: 50px;
-  padding: 5px;
-  border-radius: 5px;
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
+.pagination-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
 }
 
-option {
-  padding: 5px;
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.pagination-select {
+  padding: 6px 12px;
+  border-radius: 5px;
   background-color: #fff;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  color: #333;
+  transition: border-color 0.3s ease;
+}
+
+.pagination-select:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+.pagination-button {
+  padding: 6px 12px;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.pagination-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.pagination-input {
+  width: 50px;
+  padding: 6px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  text-align: center;
+}
+
+.pagination-input:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+.test-button {
+  padding: 6px 12px;
+  border-radius: 5px;
+  background-color: #28a745;
+  color: #fff;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.test-button:hover {
+  background-color: #218838;
 }
 </style>

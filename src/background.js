@@ -1,16 +1,36 @@
 'use strict'
 
-import { app, protocol, BrowserWindow, ipcMain, shell, dialog, globalShortcut } from 'electron'
+import { app, protocol, BrowserWindow, BrowserView, ipcMain, shell, dialog, globalShortcut, Menu } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 // import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
 const path = require('path')
 const fs = require('fs')
 import { bindEventWithIpc } from '@/js/ipc/ipc-event'
 import { bindGlobalShortcutWhenStartsUp } from '@/js/ipc/ipc-global-shortcut'
-import { BOUNDS, ELECTRON_DIR, DEFAULT_CONFIG_DEST } from '@/js/constants'
+import { BOUNDS, ELECTRON_DIR, EXTENSIONS } from '@/js/constants'
+import { initConfigFile, removeDeprecatedFilesInDB } from './js/ipc/config-init'
+const { get: httpGet } = require('http') 
+const { get: httpsGet } = require('https') 
 
 const isDevelopment = process.env.NODE_ENV !== 'production'
 let win
+// const menuTemplate = [
+//   {
+//     label: '设置',
+//     submenu: [
+//       {
+//         label: '快捷键',
+//         click() {
+//           console.log('设置快捷键。。');
+          
+//         }
+//       }
+//     ]
+//   }
+// ];
+
+// const menu = Menu.buildFromTemplate(menuTemplate);
+// Menu.setApplicationMenu(menu);
 
 const kits = {
   'app': app,
@@ -24,12 +44,16 @@ const kits = {
   'dialog': dialog,
   'mainWindow': win,
   'globalShortcut': globalShortcut,
+  'Menu': Menu,
+  'httpGet': httpGet,
+  'httpsGet': httpsGet,
 }
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { secure: true, standard: true } }
 ])
+
 
 async function createWindow() {
   // Create the browser window.
@@ -67,8 +91,9 @@ async function createWindow() {
     win.destroy()
   })
 
-  // place the function below to guarantee mainWindow has been initialized
+  // place the function below here to guarantee mainWindow has been initialized
   // before it's used in the function below
+  await initConfigFile(kits)
   bindEventWithIpc(kits)
 }
 
@@ -99,7 +124,7 @@ app.on('ready', async () => {
   //     console.error('Vue Devtools failed to install:', e.toString())
   //   }
   // }
-  
+
   process.on('uncaughtException', (error) => {
     console.error('Global error caught in main process:', error);
     // 可以在这里记录错误日志或执行其他操作
@@ -143,10 +168,11 @@ if (isDevelopment) {
     })
   }
 }
- 
+
 import { initDb } from './db/init-db'
-fs.mkdirSync(path.join(app.getPath('userData'), ELECTRON_DIR), { recursive: true });
+fs.mkdirSync(path.join(app.getPath('userData'), ELECTRON_DIR), { recursive: true })
 initDb(app)
+removeDeprecatedFilesInDB()
 
 
 

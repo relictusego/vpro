@@ -19,7 +19,8 @@ export default {
       lastFilePath: '',
       computionForDrawInterrupted: false,
       alreadyInitialized: false,
-      noDataFromVues: true
+      noDataFromVues: true,
+      drawnCompletely: false
     }
   },
   props: {
@@ -33,19 +34,18 @@ export default {
       data: this.parentData.filePath
     }
     window.electronAPI.executeSql(JSON.stringify(info)).then(audioWaveCanvas => {
-      const canvasPath = audioWaveCanvas['canvasFilePath']
-      console.log(`canvasPath==${JSON.stringify(canvasPath)}`);
-      if (canvasPath === undefined || canvasPath === null) {
+      if (audioWaveCanvas === undefined || audioWaveCanvas === null) {
         this.initWave(ASYNC)
       } else {
+        const canvasPath = audioWaveCanvas['canvasFilePath']
         const info = {
           'purpose': 'hideDrawWave',
           'data': canvasPath
         }
         this.$emit('drawWaveEvent', info)
+        this.drawnCompletely = true
       }
-    }).catch(e => {
-    })
+    }).catch(e => { })
 
   },
   unmounted() {
@@ -54,7 +54,7 @@ export default {
   },
   methods: {
     init() {
-      if (!this.alreadyInitialized) {
+      if (!this.alreadyInitialized && this.drawnCompletely) {
         this.initWave(SYNC)
       }
     },
@@ -135,6 +135,7 @@ export default {
         // Stop the interval if we've reached the end
         if (i >= width) {
           clearInterval(intervalId);
+          this.drawnCompletely = true
           this.saveBlobToDisk()
         }
       }, 0); // Set a 0ms delay to mimic the loop behavior as closely as possible
@@ -272,4 +273,4 @@ export default {
 };
 </script>
 
-<style></style>
+<style scoped></style>

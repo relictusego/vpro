@@ -1,21 +1,22 @@
 <template>
-  <div>
-    <div v-for="(video, index) in videos" :key="index">
-      <div class="video-container">
-        <div class="video">
-          <a href="#" @click.prevent="goToVideo(video.id)">{{ video.name }}</a>
-        </div>
-        <div class="del">
-          <a href="#" @click.prevent="delVideo(video.id)">删除</a>&nbsp;&nbsp;&nbsp;
-          <a href="#" @click.prevent="exportVideo(video.name, video.id)">导出</a>
-        </div>
-        <div style="clear: both;"></div>
+  <div class="container">
+    <div v-for="(video, index) in videos" :key="video.id" class="video-item">
+      <div class="video-details">
+        <a href="#" @click.prevent="goToVideo(video.id)" class="video-title">{{ video.name }}</a>
+      </div>
+      <div class="video-actions">
+        <button @click.prevent="delVideo(video.id)" class="action-button delete-button">删除</button>
+        <button @click.prevent="exportVideo(video.name, video.id)" class="action-button export-button">导出</button>
       </div>
     </div>
-    <input type="text" placeholder="输入视频名" v-model="videoNameCreated">
-    <button @click="create">新建</button>
-    <button @click="test">test</button>
-    <ShortcutSetting :parentData="shortcutSettingData"></ShortcutSetting>
+
+    <div class="create-section">
+      <input type="text" placeholder="输入视频名" v-model="videoNameCreated" class="input-field"/>
+      <button @click="create" class="action-button create-button">新建</button>
+      <button @click="test" class="action-button test-button">test</button>
+    </div>
+
+    <ShortcutSetting :parentData="shortcutSettingData" />
   </div>
 </template>
 
@@ -141,37 +142,100 @@ export default {
 };
 </script>
 
+
 <style scoped>
-.video {
-  width: 300px;
+.container {
+  padding: 20px;
+  background-color: #f5f5f5; /* Light grey background for the container */
+  font-family: Arial, sans-serif;
 }
 
-.del {
-  width: 120px;
+.video-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-div.video {
-  float: left;
+.video-details {
+  flex: 1;
 }
 
-/* div {
-    border: 1px solid black;
-  } */
-
-div.del {
-  float: left;
+.video-title {
+  color: #007bff;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.video-container {
-  border: 1px solid red;
-  display: inline-block;
-  /* This makes the container adjust to fit its content */
-  padding: 5px;
+.video-actions {
+  display: flex;
+  gap: 10px;
 }
 
-.video-container .video,
-.video-container .del {
-  display: inline-block;
-  /* Ensure elements are inline */
+.action-button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  outline: none;
+}
+
+.delete-button {
+  background-color: #dc3545;
+  color: white;
+}
+
+.delete-button:hover {
+  background-color: #c82333;
+}
+
+.export-button {
+  background-color: #007bff;
+  color: white;
+}
+
+.export-button:hover {
+  background-color: #0056b3;
+}
+
+.create-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.input-field {
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  width: 200px;
+}
+
+.create-button {
+  background-color: #28a745;
+  color: white;
+}
+
+.create-button:hover {
+  background-color: #218838;
+}
+
+.test-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.test-button:hover {
+  background-color: #5a6268;
 }
 </style>

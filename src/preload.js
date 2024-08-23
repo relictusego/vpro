@@ -44,6 +44,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateDataWithinVues: (data) => ipcRenderer.invoke('update-data-within-vues', data),
   openNewWindow: (windowInfo) => ipcRenderer.send('open-new-window', windowInfo),
   sendDataToMainProcess: (data) => ipcRenderer.send('data-from-renderer', data),
+  onDataFromMainProcess: (callback) => {
+    ipcRenderer.on('on-data-from-main-process', (event, data) => callback(event, data));
+  },
   showSaveDialog: (info) => ipcRenderer.invoke('dialog:showSaveDialog', info),
   openDirectory: (info) => ipcRenderer.invoke('open-directory', info),
   getCurrentWindowBounds: () => ipcRenderer.invoke('window:getBounds'),
@@ -55,7 +58,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveFiles: async (fileObjs) => { return await ipcRenderer.invoke('save-files', fileObjs) },
   deleteFile: async (filePath) => { return await ipcRenderer.invoke('delete-file', filePath) },
   bindGlobalShortcut: async (info) => { return await ipcRenderer.invoke('bind-global-shortcut', info) },
-  saveCanvas: (arrayBuffer) => ipcRenderer.send('save-canvas', arrayBuffer),
   unmountComponents: () => ipcRenderer.send('unmount-components'),
   onUnmountComponents: (callback) => ipcRenderer.on('on-unmount-components', (event, data) => { callback(data); }),
 })

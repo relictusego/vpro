@@ -1,8 +1,8 @@
 <template>
   <div class="media-grid" :style="{ width: parentData.width + 'px', height: parentData.height + 'px' }"
-    @mouseenter="init" @mouseleave="uninit">
+    @mousedown="init" @mouseup="uninit" @mouseenter="showDetail">
     <slot name="number-badge"></slot>
-    <img v-if="parentData.filePath.includes('.')" :src="'file:///' + parentData.filePath" alt="">
+    <img v-if="isImage && parentData.filePath.includes('.')" :src="'file:///' + parentData.filePath" alt="" @error="handleError" class="media-image">
     <div v-if="fileExists && (isVideo || isAudio)" @mouseover="showProgressBar = true"
       @mouseleave="showProgressBar = false" class="media-container" style="width: 100%; height: 100%;">
       <video v-if="isVideo" ref="media" :src="'file:///' + parentData.filePath" class="media"
@@ -11,7 +11,7 @@
       <audio v-if="isAudio" ref="media" :src="'file:///' + parentData.filePath" class="media"
         @timeupdate="updateProgress" @error="handleError"></audio>
       <div v-if="isAudio" class="waveform-container">
-        <img v-if="!showDrawWave" :src="'file:///' + canvasPath" alt="">
+        <img v-if="!showDrawWave" :src="'file:///' + canvasPath" alt="" class="waveform-image">
         <DrawWave :parentData="{
           'canvasWidth': drawInfo.canvasWidth,
           'canvasHeight': drawInfo.canvasHeight,
@@ -23,11 +23,11 @@
         }" v-show="showDrawWave" @drawWaveEvent="handleDrawWaveEvent" ref="drawWave"></DrawWave>
       </div>
       <div class="controls">
-        <button @click="togglePlay" v-if="parentData.showButton">
+        <button @click="togglePlay" v-if="parentData.showButton" class="control-button">
           <span v-if="isPlaying" class="icon pause-icon">&#x23F8;</span> <!-- Pause icon -->
           <span v-else class="icon play-icon">&#x25B6;</span> <!-- Play icon -->
         </button>
-        <button @click="toggleMute" v-if="parentData.showButton">
+        <button @click="toggleMute" v-if="parentData.showButton" class="control-button">
           <span v-if="isMuted" class="icon mute-icon">&#x1F507;</span> <!-- Muted icon -->
           <span v-else class="icon unmute-icon">&#x1F50A;</span> <!-- Unmuted icon -->
         </button>
@@ -84,13 +84,17 @@ export default {
     }
   },
   methods: {
+    showDetail(){
+      console.log('showDetail');
+      
+    },
     init() {
       if (this.isAudio && this.drawable) {
         this.timeoutId = setTimeout(() => {
           console.log('enter')
           this.$refs.drawWave.init()
           this.showDrawWave = true
-        }, 1000)
+        }, 300)
       }
     },
     uninit() {
@@ -235,6 +239,9 @@ export default {
     isVideo() {
       return mimeType(this.parentData.filePath) === 'VIDEO'
     },
+    isImage() {
+      return mimeType(this.parentData.filePath) === 'IMAGE'
+    },
     isAudio() {
       return mimeType(this.parentData.filePath) === 'AUDIO'
     }
@@ -246,47 +253,21 @@ export default {
 
 <style scoped>
 .media-grid {
-  /* width: 200px;
-  height: 200px; */
-  flex: 0 0 auto;
   display: flex;
   justify-content: center;
   align-items: center;
-  border: 1px solid red;
-  margin: 0;
-  padding: 0;
+  border: 1px solid #ddd;
   background-color: #eee;
   position: relative;
   user-select: none;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
-.media-grid img {
+.media-image {
   max-width: 100%;
   max-height: 100%;
   object-fit: cover;
-}
-
-/* 定义边框闪烁动画 */
-@keyframes borderBlink {
-  0% {
-    border-color: rgb(59, 60, 54);
-  }
-
-  50% {
-    border-color: transparent;
-  }
-
-  100% {
-    border-color: rgb(59, 60, 54);
-  }
-}
-
-/* 应用动画到选中的元素 */
-.media-grid-selected {
-  animation: borderBlink 2s infinite;
-  border: 5px dashed rgb(59, 60, 54);
-  box-sizing: border-box;
 }
 
 .media-container {
@@ -328,7 +309,7 @@ export default {
   z-index: 2;
 }
 
-.controls button {
+.control-button {
   background: rgba(0, 0, 0, 0.7);
   color: white;
   border: none;
@@ -337,19 +318,16 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 23px;
-  height: 23px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  font-size: 16px;
-  line-height: 1;
-  /* Ensures the icons are centered vertically */
+  font-size: 18px;
 }
 
 .icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 80%;
 }
 
 .progress-bar-container {
@@ -368,25 +346,32 @@ export default {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 1px;
-  background-color: rgba(86, 169, 123, 0.5);
+  background-color: rgba(86, 169, 123, 0.7);
   cursor: pointer;
+  transition: width 0.2s ease;
+  width: 1px;
 }
 
-.progress {
-  width: 100%;
-  background-color: #f00;
-  height: 100%;
+.progress-content {
+  display: flex;
+  justify-content: space-between;
+  color: white;
+  padding: 0 10px;
 }
 
 .waveform-container {
   width: 100%;
   height: 100%;
-  margin-top: 10px;
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1;
+}
+
+.waveform-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
 }
 
 .fallback {
@@ -395,5 +380,10 @@ export default {
   box-sizing: border-box;
   word-wrap: break-word;
   overflow: hidden;
+}
+
+.error-text {
+  font-weight: bold;
+  color: red;
 }
 </style>

@@ -1,10 +1,10 @@
 <template>
   <div class="container" ref="container">
     <div class="controls">
-      <button :class="{ 'clicked-button': regexMode }" @click="toggleSearchMode">正则</button>
-      <button @click="keywordForSearching = ''">清除</button>
-      <input type="text" :placeholder="dynamicPlaceholder" v-model="keywordForSearching" ref="searchInput">
-      <div>{{ parentData.total }}</div>
+      <button :class="{ 'active': regexMode }" @click="toggleSearchMode" class="toggle-button">正则</button>
+      <button @click="clearSearch" class="clear-button">清除</button>
+      <input type="text" :placeholder="dynamicPlaceholder" v-model="keywordForSearching" ref="searchInput" class="search-input">
+      <div class="results-count">{{ parentData.total }}</div>
     </div>
   </div>
 </template>
@@ -106,33 +106,60 @@ export default {
 
 <style scoped>
 .container {
-  width: 20%;
-  margin-bottom: 5px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  background-color: azure;
+  width: 25%;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  background-color: #d0d0d0 !important;
   padding: 20px;
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1000;
+  border-radius: 8px;
   display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.clicked-button {
-  background-color: rgb(211, 192, 192);
+  flex-direction: column;
+  gap: 10px;
 }
 
 .controls {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0px;
+  gap: 10px;
 }
 
-.controls>* {
-  flex: 0 0 auto;
+.toggle-button, .clear-button {
+  border: none;
+  border-radius: 5px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.toggle-button.active {
+  background-color: #007bff;
+  color: #ffffff;
+}
+
+.clear-button {
+  background-color: #f8f9fa;
+  color: #007bff;
+}
+
+.clear-button:hover {
+  background-color: #e2e6ea;
+}
+
+.search-input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+
+.results-count {
+  font-size: 14px;
+  color: #666;
 }
 </style>

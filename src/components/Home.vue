@@ -7,23 +7,21 @@
       style="user-select: none;">脚本</router-link>
     <span> | </span>
     <router-link to="/drag" exact-active-class="active-link" style="user-select: none;">drag</router-link>
-    <!-- <button @click="test">test</button> -->
     <ShortcutSetting :parentData="shortcutSettingData"></ShortcutSetting>
-    <button @click="toggleError">error</button>
     <input type="text" v-model="val" @blur="camelToSnake">
     <button @click="test">test</button>
-    <canvas ref="canvas"></canvas>
+    
   </div>
 </template>
 
 <script>
 import ShortcutSetting from './kit/ShortcutSetting.vue'
 
+
 export default {
   components: {
     ShortcutSetting,
-    // DrawWave
-
+    
   },
   data() {
     return {
@@ -46,16 +44,14 @@ export default {
       ],
       wh: {},
       isDrawing: true,
+      
     }
   },
   methods: {
     camelToSnake() {
       this.val = this.val.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
     },
-    toggleError() {
-      this.isErrorVisible = !this.isErrorVisible
-      console.log(this.isErrorVisible);
-    },
+
     test() {
       // const info = {
       //   tableName: tableNameMap.scriptRows,
@@ -101,24 +97,12 @@ export default {
           break
       }
     },
-    startDrawing() {
-      let canvas = this.$refs.canvas;
-      const ctx = canvas.getContext('2d');
-      // Clear canvas before drawing new content
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Drawing logic
-      ctx.beginPath();
-      ctx.moveTo(10, 10);
-      ctx.lineTo(100, 100);
-      ctx.stroke();
-    },
+
   },
   mounted() {
     setTimeout(() => {
       this.isErrorVisible = true
     }, 100);
-    // Start drawing
-    this.startDrawing();
 
   }
 

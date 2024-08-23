@@ -1,7 +1,9 @@
 import { runSql, generateInsertionStatement, generateUpdateStatement } from "../init-db"
 import { OPERATION_TYPE, tableNameMap } from "@/js/constants"
 
-const fieldsExceptId = ['keysCombination', 'href']
+const fieldsExceptId = ['keysCombination', 'href', 'xAxis', 'yAxis']
+const fieldsExceptHrefAndId = [...fieldsExceptId].filter(item => item !== 'href')
+const locationFields = ['xAxis', 'yAxis']
 
 /**
  * database operation
@@ -75,14 +77,21 @@ export const operationForGlobalShortcut = {
      * @returns number of affected rows
      */
     UPDATE_BY_HREF: (globalShortcut) => {
-      const sql = `
-      UPDATE ${tableNameMap.globalShortcut} 
-      SET keysCombination = '${globalShortcut.keysCombination}' 
-      WHERE
-        href = '${globalShortcut.href}'
-      `
+      const sql = generateUpdateStatement(fieldsExceptHrefAndId, globalShortcut, tableNameMap.globalShortcut, 'href')  
       return runSql(sql, OPERATION_TYPE.UPDATE)
-    }
+    },
+    /**
+     * update the location of the window bound into shortcut by href
+     * @param {Object} globalShortcut the one to be updated
+     * @returns number of affected rows
+     */
+    UPDATE_WINDOW_LOCATION_BY_HREF: (globalShortcut) => {
+      const sql = generateUpdateStatement(locationFields, globalShortcut, tableNameMap.globalShortcut, 'href')  
+      console.log(`====>${JSON.stringify(globalShortcut)}`);
+      console.log(`====>${sql}`);
+      
+      return runSql(sql, OPERATION_TYPE.UPDATE)
+    },
   }
 
 

@@ -1,6 +1,6 @@
-export const GlobalVar = {
+export const globalVar = {
   /**
-   * a map where key is route url, value is the instance of electron window
+   * A map where key is route url, value is the instance of electron window
    */
-  UrlWinMap: {}
+  urlWinMap: {},
 }

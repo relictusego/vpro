@@ -36,6 +36,15 @@ export const operationForFileRank = {
   },
   selection: {
     /**
+     * @returns all rows
+    */
+    SELECT_ALL: () => {
+      const sql = `
+      SELECT * FROM ${tableNameMap.fileRank}
+      `
+      return runSql(sql, OPERATION_TYPE.SELECTION)
+    },
+    /**
      * get an array of file rank object by specifying file paths
      * @param {Array<String>} filePaths 
      * @returns {Promise<Object>} resolve file rank object

@@ -2,33 +2,35 @@
   <div class="container">
     <div class="left-side">
       <div class="path-selector" @click="change()">
-        <span style="user-select: none;">{{ curPath }}</span>
-        <span v-if="curPath === ''" style="user-select: none;">选择文件夹</span>
+        <span>{{ curPath }}</span>
+        <span v-if="curPath === ''">选择文件夹</span>
       </div>
       <div class="path-displayer">
         <div v-for="(file, index) in fileList" :key="index">
           <div class="file-tab" @dblclick="diveIntoDir(index)" :class="{ selected: selectedIndex === index }"
             @click="selectFile(index)">
-            <div style="width: 50%;" :style="{ fontWeight: file.isDir ? 'bold' : 'normal' }">{{ file.name }}</div>
+            <div class="file-name" :class="{ bold: file.isDir }">{{ file.name }}</div>
             <div v-if="file.len > 0">{{ file.len }}</div>
           </div>
         </div>
       </div>
-      <!-- <div style="height: 20px;"></div> -->
-      &nbsp;<input type="text" v-model="keywordForFilterFolder" ref="kwInput" placeholder="输入关键字筛选文件夹">
-      <button @click="resetFileList" type="button">清空</button>
-      <button @click="recentlyMostUsed" :class="{ 'clicked-button': horizontalControlBarData.show }">常用文件</button>
-      <HorizontalControlBar v-if="horizontalControlBarData.show"
-        @horizontalControlBarEvent="handleHorizontalControlBarEvent" :parentData="horizontalControlBarData">
-      </HorizontalControlBar>
+      <div class="input-area">
+        <input type="text" v-model="keywordForFilterFolder" ref="kwInput" placeholder="输入关键字筛选文件夹">
+        <div style="height: 18px;"></div>
+        <HorizontalControlBar v-if="horizontalControlBarData.show"
+          @horizontalControlBarEvent="handleHorizontalControlBarEvent" :parentData="horizontalControlBarData">
+        </HorizontalControlBar>
+        <button @click="resetFileList" type="button">清空</button>
+        <button @click="recentlyMostUsed" :class="{ 'clicked-button': horizontalControlBarData.show }">常用文件</button>
+      </div>
     </div>
     <div class="right-side">
       <div class="file-viewer" @dragover.prevent="handleDragOver" @dragleave="handleDragLeave"
         @drop.prevent="handleDrop" @wheel="handleWheel" :class="{ 'dragging': isDraggingFile }">
         <input type="file" ref="fileInput" @change="handleFileChange" style="display: none;" />
-        <div v-for="(pagedFilePath, index) in pagedFilePaths" :key="pagedFilePath">
-          <div style="display: flex;  justify-content: center;  align-items: center;"
-            :style="{ width: mediaGrid.width + 5 + 'px', height: mediaGrid.height + 5 + 'px', 'box-sizing': 'border-box' }">
+        <div v-for="(pagedFilePath, index) in pagedFilePaths" :key="pagedFilePath" class="media-container">
+          <div class="media-grid-wrapper"
+            :style="{ width: mediaGrid.width + 5 + 'px', height: mediaGrid.height + 5 + 'px' }">
             <span class="media-grid-span"></span>
             <MediaGrid
               :parentData="{ 'filePath': pagedFilePath, width: mediaGrid.width, height: mediaGrid.height, showButton: showFileRank }"
@@ -41,8 +43,8 @@
               </template>
             </MediaGrid>
           </div>
-          <div style="width: 200px;" :style="filenameDivStyle" ref="filenameDivs">{{
-            pagedFilePath.substring(pagedFilePath.lastIndexOf('\\') + 1) }}
+          <div class="filename-div" ref="filenameDivs" :style="filenameDivStyle">
+            {{ pagedFilePath.substring(pagedFilePath.lastIndexOf('\\') + 1) }}
           </div>
         </div>
       </div>
@@ -51,24 +53,26 @@
           'filePaths': subFilePaths, 'showFileSearch': showFileSearch,
           'keywordForSearching': paginationData.keywordForSearching,
           'filePathDived': paginationData.filePathDived,
-        }" @paginationEvent="handlePaginationEvent" ref="pagination"></Pagination>
+        }" @paginationEvent="handlePaginationEvent" ref="pagination">
+          <template #extra-button>
+            <button @click="getFileList">fileList</button>
+          </template>
+        </Pagination>
 
-        <div>
-          <button @click="getFileList">fileList</button>
-        </div>
       </div>
     </div>
 
     <!-- Context Menu element -->
     <ul v-if="contextMenu.visible" class="context-menu" ref="contextMenu"
       :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
-      <li @mouseenter="scriptOptions">发送到<span style="color: blue; font-family: '黑体', sans-serif;">{{
-        curVideoInfo.videoName }}</span></li>
+      <li v-if="pagedFilePaths[contextMenu.index].includes('.')" @mouseenter="scriptOptions">发送到<span
+          class="context-menu-highlight">{{
+            curVideoInfo.videoName }}</span></li>
       <li @click="copyFilePath" @mouseenter="hideScriptNumMenu">复制路径</li>
       <li @click="locateFile" @mouseenter="hideScriptNumMenu">定位文件</li>
       <li @click="deleteFile" @mouseenter="hideScriptNumMenu">删除文件</li>
-      <li v-if="showFileSearch || horizontalControlBarData.show" @click="diveIntoDirByPath"
-        @mouseenter="hideScriptNumMenu">
+      <li v-if="showFileSearch || horizontalControlBarData.show"
+        @click="diveIntoDirByPath(pagedFilePaths[contextMenu.index])" @mouseenter="hideScriptNumMenu">
         跳转</li>
     </ul>
 
@@ -97,7 +101,7 @@
 </template>
 
 <script>
-import { SPEC, tableNameMap, OPERATION_TYPE, BOUNDS, DEFAULT_CONFIG_DEST } from '@/js/constants'
+import { SPEC, tableNameMap, OPERATION_TYPE, BOUNDS, DEFAULT_CONFIG_DEST, CONFIG_FIELD_NAMES } from '@/js/constants'
 import { newDataWithinVues, mimeType, similarity, delay, debounce } from '@/js/functions/vue-functions'
 import FileSearch from './kit/FileSearch.vue'
 import ShrinkBox from './kit/ShrinkBox.vue'
@@ -133,14 +137,10 @@ function splitWithSlashOrBackSlash(str) {
 }
 
 
-//TODO scale the picture grid using scrolling
-
 export default {
   data() {
     return {
-      // TODO need to remember the last selected one
       curPath: '',
-      // curPath: 'E:/multi-media',
       fileList: [],
       selectedIndex: 0,
       forwardIndices: [],
@@ -223,6 +223,8 @@ export default {
         if (success) {
           this.pagedFilePaths.splice(idxForPaged, 1)
           this.subFilePaths.splice(idxForSub, 1)
+          // TODO need to delete record in DB and corresponding waveform synchronously if it's audio file. 
+          this.fileList[this.selectedIndex].len--
         } else {
           alert(`${path}删除失败`)
         }
@@ -329,6 +331,8 @@ export default {
           if (MEDIA_GRID.STEP > MEDIA_GRID.MIN_STEP) MEDIA_GRID.STEP -= MEDIA_GRID.STEP_ACC
 
           if (width < MEDIA_GRID.WIDTH || height < MEDIA_GRID.HEIGHT) {
+            console.log('000000000000');
+
             this.filenameDivStyle = {
               'overflow': 'hidden',
               'white-space': 'nowrap',
@@ -617,9 +621,10 @@ export default {
       // console.log(this.fileList[this.selectedIndex]);
       // console.log(this.$route.href);
 
-      // this.shortcutSettingData.showDialog = !this.shortcutSettingData.showDialog
-      let spans = this.$el.querySelectorAll('.media-grid-span')
-      console.log(spans);
+      this.shortcutSettingData.showDialog = !this.shortcutSettingData.showDialog
+      // let spans = this.$el.querySelectorAll('.media-grid-span')
+      // console.log(spans);
+      console.log(this.selectedIndex);
 
     },
     change() {
@@ -637,8 +642,12 @@ export default {
         })
         .then(path => {
           return window.electronAPI.addRowsInJsonFile(JSON.stringify({
-            fieldName: 'lastPickedPath',
-            fieldValue: path,
+            rows: [
+              {
+                fieldName: CONFIG_FIELD_NAMES.LAST_PICKED_PATH,
+                fieldValue: path,
+              }
+            ],
             dest: DEFAULT_CONFIG_DEST
           }))
         })
@@ -718,8 +727,8 @@ export default {
 
       await this.updateWhenFolderChanged(this.selectedIndex)
     },
-    async diveIntoDirByPath() {
-      const path = this.pagedFilePaths[this.contextMenu.index]
+    async diveIntoDirByPath(path, shrink = true) {
+      // const path = this.pagedFilePaths[this.contextMenu.index]
       const parentDir = path.substring(0, path.lastIndexOf('\\'))
       const grandDir = parentDir.substring(0, parentDir.lastIndexOf('\\'))
       const filePaths = await window.electronAPI.subfilePathsInDir(grandDir)
@@ -756,14 +765,16 @@ export default {
             selectedElement.classList.remove('media-grid-selected')
           })
 
-          this.shrinkBoxData.show = true
-          const targetRect = selectedElement.getBoundingClientRect();
-          // define the position of end of the animation
-          this.shrinkBoxData['finalWidth'] = targetRect.width
-          this.shrinkBoxData['finalHeight'] = targetRect.height
-          this.shrinkBoxData['finalTop'] = targetRect.top + window.scrollY
-          this.shrinkBoxData['finalLeft'] = targetRect.left + window.scrollX
-          this.shrinkBoxData['bkColorRgba'] = `rgba(119, 117, 117, 0.516)`
+          if (shrink) {
+            this.shrinkBoxData.show = true
+            const targetRect = selectedElement.getBoundingClientRect();
+            // define the position of end of the animation
+            this.shrinkBoxData['finalWidth'] = targetRect.width
+            this.shrinkBoxData['finalHeight'] = targetRect.height
+            this.shrinkBoxData['finalTop'] = targetRect.top + window.scrollY
+            this.shrinkBoxData['finalLeft'] = targetRect.left + window.scrollX
+            this.shrinkBoxData['bkColorRgba'] = `rgba(119, 117, 117, 0.516)`
+          }
           // time unit: second
           this.shrinkBoxData['aliveTime'] = 0.4
           console.log(this.shrinkBoxData);
@@ -806,9 +817,22 @@ export default {
 
             // Ensure DOM is updated before scrolling
             this.$nextTick(() => {
+              // scroll selected element smoothly only when it's visible, otherwise scroll hastely
               const selectedElement = this.$el.querySelector('.file-tab.selected');
+              const container = this.$el.querySelector('.path-displayer');
+              const containerRect = container.getBoundingClientRect();
+              const selectedElementRect = selectedElement.getBoundingClientRect();
+              const isVisible = (
+                selectedElementRect.top < containerRect.bottom &&
+                selectedElementRect.bottom > containerRect.top
+              );
+
               if (selectedElement) {
-                selectedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (isVisible) {
+                  selectedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                  selectedElement.scrollIntoView({ behavior: 'auto', block: 'center' });
+                }
               }
             })
             return subFilePaths
@@ -827,13 +851,13 @@ export default {
         this.showFileSearch || this.showFileSearchInCurDir || this.isPageInput
 
       if ((event.key === 'w' || event.key === 'W') && !inputting) {
+        this.debounceObj.flag = true
         if (this.selectedIndex > 0) this.selectedIndex--;
         this.forwardIndices = []
-        this.debounceObj.flag = true
       } else if ((event.key === 's' || event.key === 'S') && !inputting) {
+        this.debounceObj.flag = true
         if (this.selectedIndex < this.fileList.length - 1) this.selectedIndex++;
         this.forwardIndices = []
-        this.debounceObj.flag = true
       } else if ((event.key === 'a' || event.key === 'A') && !inputting) {
         this.backToParentPath();
       } else if ((event.key === 'd' || event.key === 'D') && !inputting) {
@@ -982,9 +1006,31 @@ export default {
 
             }
             break
+          case SPEC.vueNames.SITE_BROWSER:
+            switch (data.type) {
+              case SPEC.type.PASS_MEDIA_INFO_TO_MAIN_PROCESS:
+                const { filename, suffix } = data.data
+                const mediaData = {
+                  'filename': filename,
+                  'suffix': suffix,
+                  'dirPath': this.fileList[this.selectedIndex].path
+                }
+                window.electronAPI.sendDataToMainProcess(mediaData)
+            }
+
           default:
 
         }
+      }
+    })
+
+    window.electronAPI.onDataFromMainProcess((event, info) => {
+      const { purpose, data } = info
+      switch (purpose) {
+        case 'storageInform':
+          // this.selectFile(this.selectedIndex)
+          this.diveIntoDirByPath(data, false)
+          break
       }
     })
 
@@ -997,14 +1043,12 @@ export default {
         const info = {
           rows: [
             {
-              fieldName: 'lastUsedPath',
+              fieldName: CONFIG_FIELD_NAMES.LAST_USED_PATH,
               fieldValue: this.curPath,
-              dest: DEFAULT_CONFIG_DEST
             },
             {
-              fieldName: 'lastSelectedIndex',
+              fieldName: CONFIG_FIELD_NAMES.LAST_SELECTED_INDEX,
               fieldValue: this.selectedIndex,
-              dest: DEFAULT_CONFIG_DEST
             }
           ],
           dest: DEFAULT_CONFIG_DEST
@@ -1016,6 +1060,7 @@ export default {
         })
       }
     })
+
   },
   unmounted() {
     window.removeEventListener('keydown', this.handleKeyDown)
@@ -1024,14 +1069,12 @@ export default {
       const info = {
         rows: [
           {
-            fieldName: 'lastUsedPath',
+            fieldName: CONFIG_FIELD_NAMES.LAST_USED_PATH,
             fieldValue: this.curPath,
-            dest: DEFAULT_CONFIG_DEST
           },
           {
-            fieldName: 'lastSelectedIndex',
+            fieldName: CONFIG_FIELD_NAMES.LAST_SELECTED_INDEX,
             fieldValue: this.selectedIndex,
-            dest: DEFAULT_CONFIG_DEST
           }
         ],
         dest: DEFAULT_CONFIG_DEST
@@ -1047,7 +1090,7 @@ export default {
         if (this.debounceObj.flag) {
           debounce(this.debounceObj, () => {
             this.selectFile(newValue)
-            this.debounceObj.flag = false            
+            this.debounceObj.flag = false
           }, 50)
         } else {
           this.selectFile(newValue)
@@ -1097,81 +1140,117 @@ export default {
 
 <style scoped>
 .container {
-  background-color: rgba(7, 114, 39, 0.3);
-  height: 1125px;
+  /* background-color: #e0e0e0;  */
+  height: 1080px;
+  /* box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);  */
+  display: flex;
+  gap: 20px;
 }
 
 .left-side {
   width: 250px;
   height: 100%;
-  border: 1px solid black;
-  margin-left: 1%;
-  float: left;
-  box-sizing: border-box;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #f0f0f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-left: 1.5%;
 }
 
 .right-side {
-  width: calc(100% - 300px);
+  flex-grow: 1;
   height: 100%;
-  margin-left: 1%;
-  float: left;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #f0f0f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .file-viewer {
   width: 100%;
-  height: 95%;
-  border: 1px solid black;
+  flex-grow: 1;
+  border: 1px solid #bbb;
+  border-radius: 8px;
   box-sizing: border-box;
   overflow: auto;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  user-select: none;
-  transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
+  background-color: #e0e0e0;
 }
 
 .file-viewer.dragging {
-  box-shadow: 10 10 10px rgba(0, 0, 0, 0.2);
-  border-color: #333;
-  background-color: rgba(72, 76, 79, 0.3);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  border-color: #aaa;
+  background-color: #d0d0d0;
 }
 
 .operation-area {
-  height: 5%;
-  width: 100%;
-  border: 1px solid black;
-  box-sizing: border-box;
-  border-top: none;
+  height: auto;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  padding: 10px;
+  background-color: #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .path-selector {
-  border: 1px solid red;
-  box-sizing: border-box;
+  border: 1px solid #bbb;
+  border-radius: 8px;
   height: 50px;
   display: flex;
   justify-content: center;
   align-items: center;
+  background-color: #ccc;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.path-selector:hover {
+  background-color: #bbb;
 }
 
 .path-displayer {
-  height: 1000px;
+  flex-grow: 1;
   overflow: auto;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  padding: 10px;
+  background-color: #f5f5f5;
+  color: #333;
+  width: 230px;
+}
+
+.file-tabs-wrapper {
+  overflow-y: auto;
+  height: 100%;
 }
 
 .file-tab {
-  border-bottom: 1px dashed blue;
+  border-bottom: 1px dashed #ddd;
   user-select: none;
   transition: background-color 0.1s ease;
-  text-align: left;
-  padding-left: 10%;
+  padding: 10px;
   display: flex;
-  /* Add this to use flexbox */
+  justify-content: space-between;
   align-items: center;
-  /* Vertically align items */
+  cursor: pointer;
+  color: #333;
 }
 
 .file-tab:hover {
-  background-color: #f0f0f0;
+  background-color: #e0e0e0;
 }
 
 .file-tab.selected {
@@ -1182,54 +1261,91 @@ export default {
   background-color: #d0d0d0;
 }
 
-.pic-grid {
-  /* width: 200px;
-  height: 200px; */
-  flex: 0 0 auto;
+.file-name {
+  width: 50%;
+}
+
+.file-name.bold {
+  font-weight: bold;
+}
+
+.input-area {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.input-area input {
+  flex-grow: 1;
+  padding: 8px;
+  border: 1px solid #bbb;
+  /* Lighter border */
+  border-radius: 8px;
+  background-color: #e0e0e0;
+  /* Lighter gray background */
+  color: #333;
+  /* Darker text for contrast */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  /* Subtle inset shadow */
+}
+
+.input-area button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background-color: #3182ce;
+  /* Primary button color */
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  width: 50%;
+}
+
+.input-area button:hover {
+  background-color: #2c5282;
+  /* Darker button color on hover */
+}
+
+.media-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.media-grid-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
-  border: 1px solid red;
+  border: 1px solid #bbb;
+  /* Lighter border */
+  border-radius: 8px;
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  background-color: #eee;
-  position: relative;
+  background-color: #f0f0f0;
+  /* Light gray background */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  /* Subtle shadow */
+  transition: box-shadow 0.3s ease-in-out;
 }
 
-.pic-grid img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: cover;
+.media-grid-wrapper:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  /* Slightly more noticeable shadow on hover */
 }
 
-/* 定义边框闪烁动画 */
-@keyframes borderBlink {
-  0% {
-    border-color: rgb(59, 60, 54);
-  }
-
-  50% {
-    border-color: transparent;
-  }
-
-  100% {
-    border-color: rgb(59, 60, 54);
-  }
-}
-
-/* 应用动画到选中的元素 */
-.media-grid-selected {
-  animation: borderBlink 2s infinite;
-  border: 8px dashed rgb(59, 60, 54);
-  box-sizing: border-box;
+.filename-div {
+  width: 200px;
+  text-align: center;
+  font-size: 14px;
+  color: #333;
+  user-select: none;
 }
 
 .number-badge {
   position: absolute;
   top: 10px;
   right: 10px;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: #3182ce;
+  /* Badge color */
   color: white;
   width: 24px;
   height: 24px;
@@ -1241,11 +1357,12 @@ export default {
   justify-content: center;
 }
 
-
 .context-menu {
   position: absolute;
-  background-color: white;
-  border: 1px solid #ccc;
+  background-color: #f0f0f0;
+  /* Light gray background */
+  border: 1px solid #bbb;
+  /* Lighter border */
   box-sizing: border-box;
   list-style-type: none;
   padding: 0;
@@ -1253,30 +1370,72 @@ export default {
   z-index: 1000;
   text-align: left;
   min-width: 150px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  /* Subtle shadow */
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .context-menu li {
-  padding: 8px 12px;
+  padding: 10px 15px;
   cursor: pointer;
+  transition: background-color 0.3s;
+  color: #333;
+  /* Darker text for contrast */
 }
 
 .context-menu li:hover {
-  background-color: #eee;
+  background-color: #e0e0e0;
+  /* Light gray background on hover */
+}
+
+.context-menu-highlight {
+  color: #3182ce;
+  /* Highlight color */
+  font-family: '黑体', sans-serif;
 }
 
 .centered-overlay {
   position: fixed;
-  height: 5%;
+  height: auto;
   transform: translate(-50%, -50%);
   z-index: 1000;
-  /* Ensure it's above other elements */
-  background-color: rgba(219, 230, 240, 0.927);
+  background-color: rgba(240, 240, 240, 0.95);
+  /* Lighter overlay background */
   padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  /* Subtle shadow */
   border-radius: 10px;
 }
 
 .clicked-button {
-  background-color: rgb(211, 192, 192);
+  background-color: #e0e0e0;
+  /* Lighter button background */
+}
+
+@keyframes borderPulse {
+  0% {
+    border-color: #3b3c36;
+    box-shadow: 0 0 0 0 rgba(59, 60, 54, 0.7);
+  }
+
+  50% {
+    border-color: transparent;
+    box-shadow: 0 0 20px 10px rgba(59, 60, 54, 0.7);
+  }
+
+  100% {
+    border-color: #3b3c36;
+    box-shadow: 0 0 0 0 rgba(59, 60, 54, 0.7);
+  }
+}
+
+.media-grid-selected {
+  animation: borderPulse 3s infinite;
+  border: 2px solid #3b3c36;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  z-index: 10;
+  /* Ensure it’s on top */
 }
 </style>

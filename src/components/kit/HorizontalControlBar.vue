@@ -1,7 +1,7 @@
 <template>
     <div class="volume-control" ref="volumeControl" @mousedown="startDragging">
       <div class="volume-bar"></div>
-      <div class="volume-ring" :style="{ left: volume + '%' }" style="user-select: none;">&nbsp;&nbsp;&nbsp;{{ curFreq }}</div>
+      <div class="volume-ring" :style="{ left: volume + '%' }" style="user-select: none;">&nbsp;&nbsp;&nbsp;&nbsp;{{ curFreq }}</div>
     </div>
 </template>
 
@@ -58,10 +58,10 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 .volume-control {
   width: 100%;
-  height: 20px;
+  height: 30px; /* Increased height for better usability */
   background: transparent;
   position: relative;
   cursor: pointer;
@@ -72,17 +72,24 @@ export default {
 
 .volume-bar {
   width: 100%;
-  height: 4px;
+  height: 6px; /* Slightly thicker for better visibility */
   background: #ccc;
   position: absolute;
+  border-radius: 3px;
 }
 
 .volume-ring {
-  width: 10px;
-  height: 10px;
+  width: 3px; /* Increased size for easier interaction */
+  height: 20px;
   background: #f00;
-  border-radius: 50%;
+  border-radius: 100%;
   position: absolute;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(81, 16, 16);
+  font-size: 20px; /* Text size inside the ring */
+  user-select: none;
 }
 </style>

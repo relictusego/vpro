@@ -1,5 +1,6 @@
 import { operationForGlobalShortcut } from "@/db/operation/operation-4-global-shortcut";
 import { createNewWindow } from "../functions/ipc-functions";
+import { ROUTER_HREF } from "../constants";
 
 /**
  * bind global shortcut when the main app starts up
@@ -8,10 +9,12 @@ import { createNewWindow } from "../functions/ipc-functions";
 export function bindGlobalShortcutWhenStartsUp(kits) {
   const { globalShortcut, dialog } = kits
   operationForGlobalShortcut.selection.SELECT_ALL().then(globalShortcuts => {
-    globalShortcuts.map(({ keysCombination, href }) => {
+    globalShortcuts.map(({ keysCombination, href, xAxis, yAxis }) => {
+      if (xAxis === undefined || xAxis === null) xAxis = 0
+      if (yAxis === undefined || yAxis === null) yAxis = 0
       // Register a global shortcut
       const ret = globalShortcut.register(keysCombination, () => {
-        createNewWindow(kits, href, { x: 0, y: 0 })
+        createNewWindow(kits, href, { x: xAxis, y: yAxis })
       });
 
       if (!ret) {
@@ -22,7 +25,7 @@ export function bindGlobalShortcutWhenStartsUp(kits) {
 }
 
 /**
- * bind global shortcut 
+ * bind global shortcut in run time
  * @param {Object} kits a map consists of kits in electron or node
  * @param {String} href the href of a vue route
  * @param {String} keysCombination the keys combination for shortcut
@@ -31,6 +34,7 @@ export async function bindGlobalShortcut(kits, href, keysCombination) {
   const { globalShortcut, dialog } = kits
   // Register a global shortcut
   const ret = globalShortcut.register(keysCombination, () => {
+    // get the last bounds of the window and apply it for newly created window
     createNewWindow(kits, href, { x: 0, y: 0 })
   });
 
@@ -43,7 +47,7 @@ export async function bindGlobalShortcut(kits, href, keysCombination) {
 
   // get the current keys combination of the current href, unregister it before update
   let row = await operationForGlobalShortcut.selection.SELECT_BY_HREF(href)
-  
+
   if (row) {
     globalShortcut.unregister(row.keysCombination)
     // the current href has already been bound shortcut, update it
